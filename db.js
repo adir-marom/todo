@@ -102,8 +102,8 @@ export const initializeDatabase = async () => {
     
     // Migration: Create default users "Adir" and "Tzuf"
     const usersToCreate = [
-      { name: 'Adir', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop' },
-      { name: 'Tzuf', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }
+      { name: 'Adir', image: '/adir.png' },
+      { name: 'Tzuf', image: '/tzuf.png' }
     ];
 
     let adirId = null;
