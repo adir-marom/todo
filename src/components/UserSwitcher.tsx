@@ -271,7 +271,7 @@ export function UserSwitcher({
 
       {/* Switch confirmation dialog */}
       <AlertDialog open={!!pendingUser} onOpenChange={(open) => !open && setPendingUser(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Switch to {pendingUser?.name}'s profile?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -289,7 +289,7 @@ export function UserSwitcher({
 
       {/* Edit profile image dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">
           <DialogHeader>
             <DialogTitle>Edit Profile Image</DialogTitle>
             <DialogDescription>

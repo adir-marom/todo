@@ -94,7 +94,7 @@ export function EditTaskDialog({ task, groups, onSave }: EditTaskDialogProps) {
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]" onKeyDown={handleKeyDown}>
+      <DialogContent className="w-[95vw] max-w-[425px] max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>Edit Task</DialogTitle>
         </DialogHeader>
@@ -109,7 +109,7 @@ export function EditTaskDialog({ task, groups, onSave }: EditTaskDialogProps) {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
@@ -159,45 +159,45 @@ export function EditTaskDialog({ task, groups, onSave }: EditTaskDialogProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Due Date</Label>
-              <div className="flex gap-1">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        'flex-1 justify-start text-left font-normal',
-                        !dueDate && 'text-muted-foreground'
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dueDate ? format(dueDate, 'PPP') : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dueDate}
-                      onSelect={setDueDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                {dueDate && (
+            <div className="flex flex-col sm:flex-row gap-1">
+              <Popover>
+                <PopoverTrigger asChild>
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearDueDate}
-                    className="px-2"
+                    variant="outline"
+                    className={cn(
+                      'flex-1 justify-start text-left font-normal',
+                      !dueDate && 'text-muted-foreground'
+                    )}
                   >
-                    Clear
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dueDate ? format(dueDate, 'PPP') : 'Pick a date'}
                   </Button>
-                )}
-              </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dueDate}
+                    onSelect={setDueDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              {dueDate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearDueDate}
+                  className="px-2 h-10 sm:h-auto"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
             </div>
 
             <div className="space-y-2">

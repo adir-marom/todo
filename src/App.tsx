@@ -185,7 +185,7 @@ function App() {
   }
 
   // If no user is selected, show the selection screen
-  if (!isUserSelected && users.length > 0) {
+  if (!isUserSelected && users.length > 0 && !currentUser) {
     return (
       <AnimatePresence mode="wait">
         <motion.div
@@ -215,7 +215,7 @@ function App() {
 
   return (
     <AnimatePresence mode="wait">
-      {!isUserSelected && users.length > 0 ? (
+      {!isUserSelected && users.length > 0 && !currentUser ? (
         <motion.div
           key="user-selection"
           initial={{ opacity: 0 }}
@@ -235,7 +235,7 @@ function App() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="min-h-screen bg-background pb-20 md:pb-0"
+          className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0"
         >
           <div className="container mx-auto py-3 sm:py-6 md:py-8 px-2 sm:px-4 lg:px-6 max-w-4xl">
             <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
@@ -250,7 +250,7 @@ function App() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+            <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-wrap justify-end">
                 <SyncStatusCompact state={syncState} />
                 <UserSwitcher users={users} currentUser={currentUser} onSwitchUser={switchUser} onUpdateUser={updateUser} />
                 <ExportImportDialog tasks={tasks} groups={groups} currentUser={currentUser} onImport={importTasks} />

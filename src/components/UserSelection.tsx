@@ -194,7 +194,7 @@ export function UserSelection({ users, onSelectUser, onUpdateUser }: UserSelecti
       </motion.div>
 
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="sm:max-w-md border-white/10 bg-card/95 backdrop-blur-2xl text-foreground">
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg border-white/10 bg-card/95 backdrop-blur-2xl text-foreground">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Update Avatar</DialogTitle>
             <DialogDescription className="text-base font-medium">

@@ -104,7 +104,7 @@ export function GroupManagementDialog({
           Manage Groups
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="w-[95vw] max-w-[400px] max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">
         <DialogHeader>
           <DialogTitle>Manage Groups</DialogTitle>
           <DialogDescription>
@@ -175,7 +175,7 @@ export function GroupManagementDialog({
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent>
+                        <AlertDialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Group</AlertDialogTitle>
                             <AlertDialogDescription>

@@ -86,7 +86,12 @@ const MAX_RETRY_DELAY = 10000; // 10 seconds
 
   // Load current user ID from localStorage
   function loadCurrentUserId(): number | null {
-    return null; // Always force user selection on first load
+    try {
+      const saved = localStorage.getItem(CURRENT_USER_KEY);
+      return saved ? parseInt(saved, 10) : null;
+    } catch (e) {
+      return null;
+    }
   }
 
 // Save current user ID to localStorage
@@ -230,7 +235,17 @@ export function useTasks() {
         return;
       }
       
-      // We don't select a user automatically anymore to force the selection screen
+      // Try to restore the last used user
+      const lastUserId = loadCurrentUserId();
+      if (lastUserId) {
+        const lastUser = fetchedUsers.find(u => u.id === lastUserId);
+        if (lastUser) {
+          setCurrentUser(lastUser);
+          currentUserRef.current = lastUser;
+          await fetchTasksForUser(lastUser.id);
+        }
+      }
+      
       setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initialize');

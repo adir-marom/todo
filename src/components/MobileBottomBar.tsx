@@ -75,7 +75,7 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
       {/* Bottom bar */}
       <div className={cn(
         "relative bg-background border-t shadow-lg",
-        isExpanded ? "pb-safe" : "pb-safe"
+        "pb-[max(1rem,env(safe-area-inset-bottom))]"
       )}>
         <AnimatePresence mode="wait">
           {isExpanded ? (

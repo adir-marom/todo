@@ -184,7 +184,7 @@ export function ExportImportDialog({
             <span className="hidden sm:inline">Export</span>
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">
           <DialogHeader>
             <DialogTitle>Export & Import</DialogTitle>
             <DialogDescription>
@@ -259,7 +259,7 @@ export function ExportImportDialog({
 
       {/* Import Confirmation Dialog */}
       <AlertDialog open={!!pendingImport} onOpenChange={(open) => !open && setPendingImport(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Import {pendingImport?.tasks.length} Tasks?</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
