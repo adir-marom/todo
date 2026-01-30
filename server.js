@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initializeDatabase, getAllTasks, getAllGroups, saveTasks, saveGroups, getAllUsers, createUser, deleteUser, getUserById } from './db.js';
+import { initializeDatabase, getAllTasks, getAllGroups, saveTasks, saveGroups, getAllUsers, createUser, updateUser, deleteUser, getUserById } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -232,6 +232,62 @@ app.post('/api/users', async (req, res) => {
     }
     
     res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+// PATCH /api/users/:id - Update a user
+app.patch('/api/users/:id', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
+    const { name, profileImage } = req.body;
+    const updates = {};
+    
+    // Validate name if provided
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim() === '') {
+        return res.status(400).json({ error: 'User name must be a non-empty string' });
+      }
+      if (name.length > 100) {
+        return res.status(400).json({ error: 'User name must be 100 characters or less' });
+      }
+      updates.name = name.trim();
+    }
+    
+    // Validate profileImage if provided
+    if (profileImage !== undefined) {
+      if (profileImage !== null && typeof profileImage !== 'string') {
+        return res.status(400).json({ error: 'Profile image must be a string URL or null' });
+      }
+      if (profileImage && profileImage.length > 2000) {
+        return res.status(400).json({ error: 'Profile image URL must be 2000 characters or less' });
+      }
+      updates.profileImage = profileImage;
+    }
+    
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid updates provided' });
+    }
+    
+    const user = await updateUser(userId, updates);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error('PATCH /api/users/:id error:', error);
+    
+    // Handle unique constraint violation (name already exists)
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'A user with this name already exists' });
+    }
+    
+    res.status(500).json({ error: 'Failed to update user' });
   }
 });
 

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { CheckSquare, Archive, ListTodo, ChevronDown, ChevronUp, Loader2, X, Minimize2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckSquare, Archive, ListTodo, ChevronDown, ChevronUp, X, Minimize2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TaskForm } from '@/components/TaskForm';
@@ -12,9 +13,14 @@ import { MobileBottomBar } from '@/components/MobileBottomBar';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { GroupManagementDialog } from '@/components/GroupManagementDialog';
-import { UserSwitcher } from '@/components/UserSwitcher';
+import { UserSwitcher, getUserColor } from '@/components/UserSwitcher';
+import { SyncStatus, SyncStatusCompact } from '@/components/SyncStatus';
+import { ExportImportDialog } from '@/components/ExportImportDialog';
+import { UndoToast } from '@/components/UndoToast';
 import { useTasks, sortTasks, filterTasks, loadUIState, saveUIState } from '@/hooks/useTasks';
 import { Priority, SortOption, TaskColor } from '@/types/task';
+import { cn } from '@/lib/utils';
+import { viewTransitionVariants } from '@/lib/motion';
 
 const MINIMAL_VIEW_KEY = 'todo-minimal-view';
 
@@ -28,7 +34,17 @@ function App() {
     currentUser,
     loading,
     error,
-    actionLoading,
+    // Sync state
+    syncState,
+    lastSyncedAt,
+    retrySave,
+    refetch,
+    // Undo
+    canUndo,
+    undoLabel,
+    undo,
+    dismissUndo,
+    // Task operations
     addTask,
     updateTask,
     deleteTask,
@@ -41,22 +57,38 @@ function App() {
     addComment,
     deleteComment,
     switchUser,
-    createUser,
-    deleteUser,
+    updateUser,
+    importTasks,
     clearError,
   } = useTasks();
 
-  // Load saved UI state on mount
-  const savedUIState = loadUIState();
+  // Handle undo dismiss (hides the toast but keeps stack for Cmd+Z)
+  const handleUndoDismiss = () => {
+    dismissUndo();
+  };
 
-  // Filter & Sort state (initialized from saved state)
-  const [searchQuery, setSearchQuery] = useState(savedUIState.searchQuery);
-  const [groupFilter, setGroupFilter] = useState<string | null>(savedUIState.groupFilter);
-  const [priorityFilter, setPriorityFilter] = useState<Priority | null>(savedUIState.priorityFilter);
-  const [colorFilter, setColorFilter] = useState<TaskColor | null>(savedUIState.colorFilter || null);
-  const [sortBy, setSortBy] = useState<SortOption>(savedUIState.sortBy);
-  const [sortAscending, setSortAscending] = useState(savedUIState.sortAscending);
-  const [activeTab, setActiveTab] = useState<string>(savedUIState.activeTab);
+  // Filter & Sort state (will be loaded per-user)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [groupFilter, setGroupFilter] = useState<string | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
+  const [colorFilter, setColorFilter] = useState<TaskColor | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('order');
+  const [sortAscending, setSortAscending] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('active');
+
+  // Load UI state when user changes
+  useEffect(() => {
+    if (currentUser?.id) {
+      const savedUIState = loadUIState(currentUser.id);
+      setSearchQuery(savedUIState.searchQuery);
+      setGroupFilter(savedUIState.groupFilter);
+      setPriorityFilter(savedUIState.priorityFilter);
+      setColorFilter(savedUIState.colorFilter || null);
+      setSortBy(savedUIState.sortBy);
+      setSortAscending(savedUIState.sortAscending);
+      setActiveTab(savedUIState.activeTab);
+    }
+  }, [currentUser?.id]);
   const [showFullForm, setShowFullForm] = useState(false);
   const [isMinimalView, setIsMinimalView] = useState(() => {
     // Check URL parameter first (for direct links)
@@ -98,10 +130,22 @@ function App() {
     });
   }, []);
 
-  // Keyboard shortcut: M to toggle minimal view
+  // Keyboard shortcut: M to toggle minimal view, Cmd+Z to undo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only trigger if not typing in an input
+      // Cmd+Z or Ctrl+Z to undo
+      if (
+        e.key === 'z' &&
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        canUndo
+      ) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      
+      // M to toggle minimal view (only if not typing in an input)
       if (
         e.key.toLowerCase() === 'm' &&
         !e.metaKey &&
@@ -116,20 +160,22 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [toggleMinimalView]);
+  }, [toggleMinimalView, canUndo, undo]);
 
-  // Save UI state whenever it changes
+  // Save UI state whenever it changes (per-user)
   useEffect(() => {
-    saveUIState({
-      searchQuery,
-      groupFilter,
-      priorityFilter,
-      colorFilter,
-      sortBy,
-      sortAscending,
-      activeTab: activeTab as 'active' | 'archived',
-    });
-  }, [searchQuery, groupFilter, priorityFilter, colorFilter, sortBy, sortAscending, activeTab]);
+    if (currentUser?.id) {
+      saveUIState({
+        searchQuery,
+        groupFilter,
+        priorityFilter,
+        colorFilter,
+        sortBy,
+        sortAscending,
+        activeTab: activeTab as 'active' | 'archived',
+      }, currentUser.id);
+    }
+  }, [searchQuery, groupFilter, priorityFilter, colorFilter, sortBy, sortAscending, activeTab, currentUser?.id]);
 
   // Apply filters and sorting to active tasks
   const filteredActiveTasks = useMemo(() => {
@@ -165,12 +211,27 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen flex items-center justify-center"
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading tasks...</p>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            className="rounded-full h-8 w-8 border-b-2 border-primary mx-auto"
+          />
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-2 text-muted-foreground"
+          >
+            Loading tasks...
+          </motion.p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -192,17 +253,36 @@ function App() {
       <div className="container mx-auto py-3 sm:py-6 md:py-8 px-2 sm:px-4 lg:px-6 max-w-4xl">
         {/* Header - Compact on mobile */}
         <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-primary" />
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Todo List</h1>
+            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Todo List</h1>
+              {/* Current user badge - highly visible */}
+              {currentUser && (
+                <span className={cn(
+                  "text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-full",
+                  getUserColor(currentUser.name).bg,
+                  getUserColor(currentUser.name).text
+                )}>
+                  {currentUser.name}'s Tasks
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+            {/* Compact sync status indicator */}
+            <SyncStatusCompact state={syncState} />
             <UserSwitcher
               users={users}
               currentUser={currentUser}
               onSwitchUser={switchUser}
-              onCreateUser={createUser}
-              onDeleteUser={deleteUser}
+              onUpdateUser={updateUser}
+            />
+            <ExportImportDialog
+              tasks={tasks}
+              groups={groups}
+              currentUser={currentUser}
+              onImport={importTasks}
             />
             <Button
               variant="ghost"
@@ -225,8 +305,22 @@ function App() {
           </div>
         </div>
 
-        {/* Error Message */}
-        {error && (
+        {/* Sync Status Bar - Show when syncing, error, or offline */}
+        {(syncState === 'error' || syncState === 'offline') && (
+          <div className="mb-3 sm:mb-4">
+            <SyncStatus
+              state={syncState}
+              lastSyncedAt={lastSyncedAt}
+              errorMessage={error}
+              onRetry={retrySave}
+              onRefresh={refetch}
+              className="w-full justify-center py-2"
+            />
+          </div>
+        )}
+
+        {/* Error Message (for non-sync errors) */}
+        {error && syncState !== 'error' && (
           <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center justify-between text-sm sm:text-base">
             <span className="flex-1 mr-2">{error}</span>
             <Button
@@ -238,14 +332,6 @@ function App() {
             >
               <X className="h-4 w-4" />
             </Button>
-          </div>
-        )}
-
-        {/* Action Loading Indicator */}
-        {actionLoading && (
-          <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-primary/5 border border-primary/20 rounded-lg text-primary flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-xs sm:text-sm">Saving changes...</span>
           </div>
         )}
 
@@ -276,21 +362,31 @@ function App() {
             <span className="flex items-center gap-2">
               {showFullForm ? 'Hide' : 'Show'} full task form
             </span>
-            {showFullForm ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
+            <motion.span
+              animate={{ rotate: showFullForm ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
               <ChevronDown className="h-4 w-4" />
-            )}
+            </motion.span>
           </Button>
-          {showFullForm && (
-            <div id="full-task-form">
-              <TaskForm 
-                groups={groups} 
-                onSubmit={addTask} 
-                onAddGroup={addGroup} 
-              />
-            </div>
-          )}
+          <AnimatePresence>
+            {showFullForm && (
+              <motion.div
+                id="full-task-form"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="overflow-hidden"
+              >
+                <TaskForm 
+                  groups={groups} 
+                  onSubmit={addTask} 
+                  onAddGroup={addGroup} 
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Tabs for Active/Archived */}
@@ -306,96 +402,125 @@ function App() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="active" className="space-y-3 sm:space-y-4">
-            <Card>
-              <CardHeader className="py-3 px-3 sm:py-4 sm:px-6">
-                <CardTitle className="text-base sm:text-lg">Filter & Sort</CardTitle>
-              </CardHeader>
-              <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
-                <FilterBar
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  groupFilter={groupFilter}
-                  onGroupFilterChange={setGroupFilter}
-                  priorityFilter={priorityFilter}
-                  onPriorityFilterChange={setPriorityFilter}
-                  colorFilter={colorFilter}
-                  onColorFilterChange={setColorFilter}
-                  sortBy={sortBy}
-                  onSortChange={setSortBy}
-                  sortAscending={sortAscending}
-                  onSortDirectionChange={setSortAscending}
+          <AnimatePresence mode="wait">
+            <TabsContent value="active" className="space-y-3 sm:space-y-4" asChild>
+              <motion.div
+                key="active"
+                variants={viewTransitionVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <Card>
+                  <CardHeader className="py-3 px-3 sm:py-4 sm:px-6">
+                    <CardTitle className="text-base sm:text-lg">Filter & Sort</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+                    <FilterBar
+                      searchQuery={searchQuery}
+                      onSearchChange={setSearchQuery}
+                      groupFilter={groupFilter}
+                      onGroupFilterChange={setGroupFilter}
+                      priorityFilter={priorityFilter}
+                      onPriorityFilterChange={setPriorityFilter}
+                      colorFilter={colorFilter}
+                      onColorFilterChange={setColorFilter}
+                      sortBy={sortBy}
+                      onSortChange={setSortBy}
+                      sortAscending={sortAscending}
+                      onSortDirectionChange={setSortAscending}
+                      groups={groups}
+                    />
+                  </CardContent>
+                </Card>
+
+                <TaskList
+                  tasks={filteredActiveTasks}
                   groups={groups}
+                  totalCount={activeTasks.length}
+                  hasActiveFilters={hasActiveFilters}
+                  isArchiveView={false}
+                  userName={currentUser?.name}
+                  onToggleComplete={toggleComplete}
+                  onDelete={deleteTask}
+                  onUpdate={updateTask}
+                  onReorder={reorderTasks}
+                  onAddComment={addComment}
+                  onDeleteComment={deleteComment}
+                  onClearFilters={clearFilters}
+                  onShowFullForm={() => setShowFullForm(true)}
+                  isDraggable={sortBy === 'order'}
                 />
-              </CardContent>
-            </Card>
+              </motion.div>
+            </TabsContent>
 
-            <TaskList
-              tasks={filteredActiveTasks}
-              groups={groups}
-              totalCount={activeTasks.length}
-              hasActiveFilters={hasActiveFilters}
-              isArchiveView={false}
-              onToggleComplete={toggleComplete}
-              onDelete={deleteTask}
-              onUpdate={updateTask}
-              onReorder={reorderTasks}
-              onAddComment={addComment}
-              onDeleteComment={deleteComment}
-              onClearFilters={clearFilters}
-              isDraggable={sortBy === 'order'}
-            />
-          </TabsContent>
+            <TabsContent value="archived" className="space-y-3 sm:space-y-4" asChild>
+              <motion.div
+                key="archived"
+                variants={viewTransitionVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <Card>
+                  <CardHeader className="py-3 px-3 sm:py-4 sm:px-6">
+                    <CardTitle className="text-base sm:text-lg">Archived Tasks</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+                      Completed tasks are moved here. You can restore them to active tasks.
+                    </p>
+                    <FilterBar
+                      searchQuery={searchQuery}
+                      onSearchChange={setSearchQuery}
+                      groupFilter={groupFilter}
+                      onGroupFilterChange={setGroupFilter}
+                      priorityFilter={priorityFilter}
+                      onPriorityFilterChange={setPriorityFilter}
+                      colorFilter={colorFilter}
+                      onColorFilterChange={setColorFilter}
+                      sortBy={sortBy}
+                      onSortChange={setSortBy}
+                      sortAscending={sortAscending}
+                      onSortDirectionChange={setSortAscending}
+                      groups={groups}
+                    />
+                  </CardContent>
+                </Card>
 
-          <TabsContent value="archived" className="space-y-3 sm:space-y-4">
-            <Card>
-              <CardHeader className="py-3 px-3 sm:py-4 sm:px-6">
-                <CardTitle className="text-base sm:text-lg">Archived Tasks</CardTitle>
-              </CardHeader>
-              <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-                  Completed tasks are moved here. You can restore them to active tasks.
-                </p>
-                <FilterBar
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  groupFilter={groupFilter}
-                  onGroupFilterChange={setGroupFilter}
-                  priorityFilter={priorityFilter}
-                  onPriorityFilterChange={setPriorityFilter}
-                  colorFilter={colorFilter}
-                  onColorFilterChange={setColorFilter}
-                  sortBy={sortBy}
-                  onSortChange={setSortBy}
-                  sortAscending={sortAscending}
-                  onSortDirectionChange={setSortAscending}
+                <TaskList
+                  tasks={filteredArchivedTasks}
                   groups={groups}
+                  totalCount={archivedTasks.length}
+                  hasActiveFilters={hasActiveFilters}
+                  isArchiveView={true}
+                  onToggleComplete={toggleComplete}
+                  onDelete={deleteTask}
+                  onUpdate={updateTask}
+                  onReorder={reorderTasks}
+                  onRestore={restoreTask}
+                  onAddComment={addComment}
+                  onDeleteComment={deleteComment}
+                  onClearFilters={clearFilters}
+                  isDraggable={false}
                 />
-              </CardContent>
-            </Card>
-
-            <TaskList
-              tasks={filteredArchivedTasks}
-              groups={groups}
-              totalCount={archivedTasks.length}
-              hasActiveFilters={hasActiveFilters}
-              isArchiveView={true}
-              onToggleComplete={toggleComplete}
-              onDelete={deleteTask}
-              onUpdate={updateTask}
-              onReorder={reorderTasks}
-              onRestore={restoreTask}
-              onAddComment={addComment}
-              onDeleteComment={deleteComment}
-              onClearFilters={clearFilters}
-              isDraggable={false}
-            />
-          </TabsContent>
+              </motion.div>
+            </TabsContent>
+          </AnimatePresence>
         </Tabs>
       </div>
       
       {/* Mobile Bottom Action Bar */}
       <MobileBottomBar onAdd={handleQuickAdd} />
+      
+      {/* Undo Toast */}
+      {canUndo && undoLabel && (
+        <UndoToast
+          label={undoLabel}
+          onUndo={undo}
+          onDismiss={handleUndoDismiss}
+        />
+      )}
     </div>
   );
 }

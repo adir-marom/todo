@@ -18,6 +18,7 @@ const initSchema = `
   CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
+    profile_image TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
@@ -77,6 +78,19 @@ export const initializeDatabase = async () => {
       console.log('Added user_id column to tasks table');
     }
     
+    // Migration: Add profile_image column to existing users table if it doesn't exist
+    const profileImageCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'profile_image'
+    `);
+    
+    if (profileImageCheck.rows.length === 0) {
+      await client.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT
+      `);
+      console.log('Added profile_image column to users table');
+    }
+    
     // Check if groups table is empty and seed defaults
     const result = await client.query('SELECT COUNT(*) FROM groups');
     if (parseInt(result.rows[0].count) === 0) {
@@ -117,7 +131,7 @@ export const initializeDatabase = async () => {
  * @returns {Promise<Array>} Array of user objects
  */
 export const getAllUsers = async () => {
-  const result = await pool.query('SELECT id, name, created_at as "createdAt" FROM users ORDER BY id ASC');
+  const result = await pool.query('SELECT id, name, profile_image as "profileImage", created_at as "createdAt" FROM users ORDER BY id ASC');
   return result.rows;
 };
 
@@ -127,21 +141,59 @@ export const getAllUsers = async () => {
  * @returns {Promise<Object|null>} User object or null
  */
 export const getUserById = async (userId) => {
-  const result = await pool.query('SELECT id, name, created_at as "createdAt" FROM users WHERE id = $1', [userId]);
+  const result = await pool.query('SELECT id, name, profile_image as "profileImage", created_at as "createdAt" FROM users WHERE id = $1', [userId]);
   return result.rows[0] || null;
 };
 
 /**
  * Create a new user
  * @param {string} name - User name
+ * @param {string|null} profileImage - Optional profile image URL
  * @returns {Promise<Object>} Created user object
  */
-export const createUser = async (name) => {
+export const createUser = async (name, profileImage = null) => {
   const result = await pool.query(
-    'INSERT INTO users (name) VALUES ($1) RETURNING id, name, created_at as "createdAt"',
-    [name]
+    'INSERT INTO users (name, profile_image) VALUES ($1, $2) RETURNING id, name, profile_image as "profileImage", created_at as "createdAt"',
+    [name, profileImage]
   );
   return result.rows[0];
+};
+
+/**
+ * Update a user
+ * @param {number} userId - User ID
+ * @param {object} updates - Object containing updates (name, profileImage)
+ * @returns {Promise<Object|null>} Updated user object or null if not found
+ */
+export const updateUser = async (userId, updates) => {
+  const setClauses = [];
+  const values = [];
+  let paramIndex = 1;
+  
+  if (updates.name !== undefined) {
+    setClauses.push(`name = $${paramIndex}`);
+    values.push(updates.name);
+    paramIndex++;
+  }
+  
+  if (updates.profileImage !== undefined) {
+    setClauses.push(`profile_image = $${paramIndex}`);
+    values.push(updates.profileImage);
+    paramIndex++;
+  }
+  
+  if (setClauses.length === 0) {
+    // No updates provided, just return the current user
+    return getUserById(userId);
+  }
+  
+  values.push(userId);
+  
+  const result = await pool.query(
+    `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING id, name, profile_image as "profileImage", created_at as "createdAt"`,
+    values
+  );
+  return result.rows[0] || null;
 };
 
 /**

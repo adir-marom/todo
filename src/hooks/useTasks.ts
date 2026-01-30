@@ -3,34 +3,47 @@ import { Task, TaskData, Priority, TaskColor, SortOption, UIState, TaskComment, 
 import { v4 as uuidv4 } from 'uuid';
 
 const API_URL = '/api';
-const UI_STATE_KEY = 'todo-ui-state';
+const UI_STATE_KEY_PREFIX = 'todo-ui-state';
 const CURRENT_USER_KEY = 'todo-current-user-id';
 
-// Load UI state from localStorage
-export function loadUIState(): UIState {
+// Get the UI state key for a specific user
+function getUIStateKey(userId?: number | null): string {
+  if (userId) {
+    return `${UI_STATE_KEY_PREFIX}-${userId}`;
+  }
+  return UI_STATE_KEY_PREFIX;
+}
+
+// Default UI state
+const DEFAULT_UI_STATE: UIState = {
+  searchQuery: '',
+  groupFilter: null,
+  priorityFilter: null,
+  colorFilter: null,
+  sortBy: 'order',
+  sortAscending: true,
+  activeTab: 'active',
+};
+
+// Load UI state from localStorage (optionally for a specific user)
+export function loadUIState(userId?: number | null): UIState {
   try {
-    const saved = localStorage.getItem(UI_STATE_KEY);
+    const key = getUIStateKey(userId);
+    const saved = localStorage.getItem(key);
     if (saved) {
       return JSON.parse(saved);
     }
   } catch (e) {
     console.error('Failed to load UI state:', e);
   }
-  return {
-    searchQuery: '',
-    groupFilter: null,
-    priorityFilter: null,
-    colorFilter: null,
-    sortBy: 'order',
-    sortAscending: true,
-    activeTab: 'active',
-  };
+  return { ...DEFAULT_UI_STATE };
 }
 
-// Save UI state to localStorage
-export function saveUIState(state: UIState): void {
+// Save UI state to localStorage (optionally for a specific user)
+export function saveUIState(state: UIState, userId?: number | null): void {
   try {
-    localStorage.setItem(UI_STATE_KEY, JSON.stringify(state));
+    const key = getUIStateKey(userId);
+    localStorage.setItem(key, JSON.stringify(state));
   } catch (e) {
     console.error('Failed to save UI state:', e);
   }
@@ -38,6 +51,9 @@ export function saveUIState(state: UIState): void {
 
 // Action types for loading states
 export type ActionType = 'add' | 'update' | 'delete' | 'toggle' | 'restore' | 'reorder' | 'comment' | null;
+
+// Sync state type
+export type SyncState = 'synced' | 'syncing' | 'offline' | 'error';
 
 // Type for save queue operations
 type SaveOperation = {
@@ -47,9 +63,26 @@ type SaveOperation = {
   resolve: (success: boolean) => void;
 };
 
+// Type for undo stack
+type UndoEntry = {
+  id: string;
+  label: string;
+  tasks: Task[];
+  groups: string[];
+  timestamp: Date;
+};
+
+const MAX_UNDO_STACK = 10;
+const UNDO_TIMEOUT_MS = 10000; // 10 seconds to undo
+
 // Actions that should be debounced (rapid successive calls)
 const DEBOUNCED_ACTIONS: ActionType[] = ['reorder', 'update', 'comment'];
 const DEBOUNCE_DELAY = 300; // ms
+
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 10000; // 10 seconds
 
 // Load current user ID from localStorage
 function loadCurrentUserId(): number | null {
@@ -82,6 +115,17 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<ActionType>(null);
+  
+  // Sync state tracking
+  const [syncState, setSyncState] = useState<SyncState>('synced');
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  // Undo stack
+  const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [undoLabel, setUndoLabel] = useState<string | null>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs to always have access to latest state (avoids stale closures)
   const tasksRef = useRef<Task[]>(tasks);
@@ -92,12 +136,41 @@ export function useTasks() {
   const saveQueueRef = useRef<SaveOperation[]>([]);
   const isProcessingRef = useRef(false);
   
+  // Retry tracking
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
   // Debounce refs
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDebouncedSaveRef = useRef<{
     resolve: (success: boolean) => void;
     actionType: ActionType;
   } | null>(null);
+
+  // Online/offline detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setSyncState(prev => prev === 'offline' ? 'synced' : prev);
+      // Retry any pending saves when coming back online
+      if (saveQueueRef.current.length > 0) {
+        processSaveQueue();
+      }
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      setSyncState('offline');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -112,7 +185,7 @@ export function useTasks() {
     currentUserRef.current = currentUser;
   }, [currentUser]);
 
-  // Cleanup debounce timer on unmount - flush pending saves
+  // Cleanup debounce, retry, and undo timers on unmount - flush pending saves
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -132,6 +205,12 @@ export function useTasks() {
             }),
           }).catch(console.error);
         }
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
       }
     };
   }, []);
@@ -211,43 +290,83 @@ export function useTasks() {
     }
   };
 
-  // Process save queue sequentially
+  // Process save queue sequentially with retry logic
   const processSaveQueue = async () => {
     if (isProcessingRef.current || saveQueueRef.current.length === 0) {
       return;
     }
 
+    // Check if offline
+    if (!navigator.onLine) {
+      setSyncState('offline');
+      return;
+    }
+
     isProcessingRef.current = true;
+    setSyncState('syncing');
 
     while (saveQueueRef.current.length > 0) {
       const operation = saveQueueRef.current[0];
       setActionLoading(operation.actionType);
+      
+      let success = false;
+      let lastError: Error | null = null;
 
-      try {
-        if (!currentUserRef.current) {
-          throw new Error('No user selected');
+      // Retry loop with exponential backoff
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          if (!currentUserRef.current) {
+            throw new Error('No user selected');
+          }
+          
+          // Check if still online before each attempt
+          if (!navigator.onLine) {
+            setSyncState('offline');
+            isProcessingRef.current = false;
+            setActionLoading(null);
+            return;
+          }
+          
+          const response = await fetch(`${API_URL}/tasks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              tasks: operation.tasks, 
+              groups: operation.groups,
+              userId: currentUserRef.current.id
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to save changes');
+          }
+          
+          success = true;
+          setError(null);
+          retryCountRef.current = 0;
+          setLastSyncedAt(new Date());
+          break;
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error('Failed to save changes');
+          
+          // If we have more retries, wait with exponential backoff
+          if (attempt < MAX_RETRIES) {
+            const delay = Math.min(
+              INITIAL_RETRY_DELAY * Math.pow(2, attempt),
+              MAX_RETRY_DELAY
+            );
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
         }
-        
-        const response = await fetch(`${API_URL}/tasks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            tasks: operation.tasks, 
-            groups: operation.groups,
-            userId: currentUserRef.current.id
-          }),
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Failed to save changes');
-        }
-        
-        setError(null);
+      }
+
+      if (success) {
         operation.resolve(true);
-      } catch (err) {
-        // On failure, we need to refetch to get the true server state
-        setError(err instanceof Error ? err.message : 'Failed to save changes');
+      } else {
+        // All retries failed
+        setError(lastError?.message || 'Failed to save changes');
+        setSyncState('error');
         operation.resolve(false);
         // Refetch to sync with server state after error
         await fetchTasks();
@@ -257,9 +376,100 @@ export function useTasks() {
       saveQueueRef.current.shift();
     }
 
+    // Update sync state if we processed everything successfully
+    if (saveQueueRef.current.length === 0 && navigator.onLine) {
+      setSyncState('synced');
+    }
+    
     setActionLoading(null);
     isProcessingRef.current = false;
   };
+
+  // Manual retry function
+  const retrySave = useCallback(() => {
+    if (syncState === 'error' || syncState === 'offline') {
+      setSyncState('syncing');
+      setError(null);
+      // Re-save current state
+      queueSaveImmediate(tasksRef.current, groupsRef.current, 'update');
+    }
+  }, [syncState]);
+
+  // Push to undo stack
+  const pushUndo = useCallback((label: string) => {
+    const entry: UndoEntry = {
+      id: crypto.randomUUID(),
+      label,
+      tasks: [...tasksRef.current],
+      groups: [...groupsRef.current],
+      timestamp: new Date(),
+    };
+    
+    setUndoStack(prev => {
+      const newStack = [entry, ...prev].slice(0, MAX_UNDO_STACK);
+      return newStack;
+    });
+    setCanUndo(true);
+    setUndoLabel(label);
+    
+    // Clear undo after timeout
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+    }
+    undoTimeoutRef.current = setTimeout(() => {
+      setCanUndo(false);
+      setUndoLabel(null);
+    }, UNDO_TIMEOUT_MS);
+  }, []);
+
+  // Undo last action
+  const undo = useCallback(async () => {
+    if (undoStack.length === 0) return false;
+    
+    const [lastAction, ...rest] = undoStack;
+    
+    // Restore the previous state
+    setTasks(lastAction.tasks);
+    setGroups(lastAction.groups);
+    tasksRef.current = lastAction.tasks;
+    groupsRef.current = lastAction.groups;
+    
+    // Remove from stack
+    setUndoStack(rest);
+    setCanUndo(rest.length > 0);
+    setUndoLabel(rest.length > 0 ? rest[0].label : null);
+    
+    // Clear timeout
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+    
+    // Save the restored state
+    await queueSave(lastAction.tasks, lastAction.groups, 'update');
+    return true;
+  }, [undoStack]);
+
+  // Clear undo stack (e.g., when switching users)
+  const clearUndo = useCallback(() => {
+    setUndoStack([]);
+    setCanUndo(false);
+    setUndoLabel(null);
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Dismiss undo toast (hide UI but keep stack for Cmd+Z)
+  const dismissUndo = useCallback(() => {
+    setCanUndo(false);
+    setUndoLabel(null);
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+  }, []);
 
   // Queue a save operation (immediate, no debounce)
   const queueSaveImmediate = (tasks: Task[], groups: string[], actionType: ActionType): Promise<boolean> => {
@@ -382,6 +592,12 @@ export function useTasks() {
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {
+    // Get the task name for undo label before deleting
+    const taskToDelete = tasksRef.current.find(t => t.id === id);
+    if (taskToDelete) {
+      pushUndo(`Delete "${taskToDelete.name.slice(0, 30)}${taskToDelete.name.length > 30 ? '...' : ''}"`);
+    }
+    
     setTasks(prev => {
       const newTasks = prev.filter(task => task.id !== id);
       tasksRef.current = newTasks;
@@ -389,7 +605,7 @@ export function useTasks() {
     });
     
     await queueSave(tasksRef.current, groupsRef.current, 'delete');
-  }, []);
+  }, [pushUndo]);
 
   const toggleComplete = useCallback(async (id: string) => {
     let taskFound = false;
@@ -502,6 +718,9 @@ export function useTasks() {
     // Don't remove the last group
     if (currentGroups.length <= 1) return;
     
+    // Push undo before making changes
+    pushUndo(`Delete group "${name}"`);
+    
     const newGroups = currentGroups.filter(g => g !== name);
     
     // If reassignTo is provided, move tasks to that group
@@ -520,7 +739,7 @@ export function useTasks() {
     groupsRef.current = newGroups;
     
     await queueSave(tasksRef.current, newGroups, 'delete');
-  }, []);
+  }, [pushUndo]);
 
   const addComment = useCallback(async (taskId: string, text: string) => {
     const newComment: TaskComment = {
@@ -565,13 +784,54 @@ export function useTasks() {
     // Flush any pending saves for current user before switching
     await flushPendingSave();
     
+    // Clear undo stack when switching users
+    clearUndo();
+    
     setCurrentUser(user);
     currentUserRef.current = user;
     saveCurrentUserId(user.id);
     
     // Fetch tasks for the new user
     await fetchTasksForUser(user.id);
-  }, [users]);
+  }, [users, clearUndo]);
+
+  // Import tasks (replace or merge)
+  const importTasks = useCallback(async (
+    importedTasks: Task[],
+    importedGroups: string[],
+    mode: 'replace' | 'merge'
+  ): Promise<boolean> => {
+    // Push undo before import
+    pushUndo(mode === 'replace' ? 'Replace all tasks' : 'Import tasks');
+    
+    let newTasks: Task[];
+    let newGroups: string[];
+    
+    if (mode === 'replace') {
+      newTasks = importedTasks.map((task, index) => ({
+        ...task,
+        order: index,
+      }));
+      newGroups = importedGroups;
+    } else {
+      // Merge: add imported tasks after existing ones
+      const maxOrder = Math.max(0, ...tasksRef.current.map(t => t.order));
+      const mergedTasks = importedTasks.map((task, index) => ({
+        ...task,
+        id: crypto.randomUUID(), // New IDs to avoid duplicates
+        order: maxOrder + index + 1,
+      }));
+      newTasks = [...tasksRef.current, ...mergedTasks];
+      newGroups = [...new Set([...groupsRef.current, ...importedGroups])];
+    }
+    
+    setTasks(newTasks);
+    setGroups(newGroups);
+    tasksRef.current = newTasks;
+    groupsRef.current = newGroups;
+    
+    return await queueSave(newTasks, newGroups, 'update');
+  }, [pushUndo]);
 
   const createNewUser = useCallback(async (name: string): Promise<User | null> => {
     try {
@@ -626,6 +886,41 @@ export function useTasks() {
     }
   }, [currentUser]);
 
+  const updateExistingUser = useCallback(async (
+    userId: number, 
+    updates: { name?: string; profileImage?: string | null }
+  ): Promise<User | null> => {
+    try {
+      const response = await fetch(`${API_URL}/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update user');
+      }
+      
+      const data = await response.json();
+      const updatedUser = data.user;
+      
+      // Update users list
+      setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      
+      // If this is the current user, update currentUser as well
+      if (currentUser?.id === userId) {
+        setCurrentUser(updatedUser);
+        currentUserRef.current = updatedUser;
+      }
+      
+      return updatedUser;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update user');
+      return null;
+    }
+  }, [currentUser]);
+
   // Derived data
   const activeTasks = tasks.filter(t => !t.archived);
   const archivedTasks = tasks.filter(t => t.archived);
@@ -648,6 +943,17 @@ export function useTasks() {
     loading,
     error,
     actionLoading,
+    // Sync state
+    syncState,
+    lastSyncedAt,
+    isOnline,
+    retrySave,
+    // Undo
+    canUndo,
+    undoLabel,
+    undo,
+    dismissUndo,
+    // Task operations
     addTask,
     updateTask,
     deleteTask,
@@ -661,7 +967,9 @@ export function useTasks() {
     deleteComment,
     switchUser,
     createUser: createNewUser,
+    updateUser: updateExistingUser,
     deleteUser: deleteExistingUser,
+    importTasks,
     refetch: fetchTasks,
     clearError: () => setError(null),
     flushPendingSave, // Call before navigation to ensure data is saved

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format, differenceInDays, isPast, isToday } from 'date-fns';
 import { 
   GripVertical, 
@@ -26,6 +27,7 @@ import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { DeleteTaskButton } from '@/components/DeleteTaskButton';
 import { cn } from '@/lib/utils';
 import { Task, TASK_COLORS, PRIORITY_CONFIG } from '@/types/task';
+import { taskCompleteVariants, springTransition } from '@/lib/motion';
 
 interface TaskCardProps {
   task: Task;
@@ -109,15 +111,22 @@ export function TaskCard({
   };
 
   return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        'relative transition-all',
-        isDragging && 'opacity-50 shadow-lg',
-        task.archived && 'opacity-70'
-      )}
+    <motion.div
+      layout
+      initial={false}
+      animate={task.completed ? 'completed' : 'uncompleted'}
+      variants={taskCompleteVariants}
+      transition={springTransition}
     >
+      <Card
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          'relative transition-shadow',
+          isDragging && 'opacity-50 shadow-lg',
+          task.archived && 'opacity-70'
+        )}
+      >
       <div 
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
         style={{ backgroundColor: colorConfig?.hex || '#6b7280' }}
@@ -253,65 +262,78 @@ export function TaskCard({
                 )}
               </Button>
 
-              {showComments && (
-                <div className="mt-2 space-y-2">
-                  {/* Comment list */}
-                  {task.comments && task.comments.length > 0 && (
-                    <div className="space-y-2 max-h-40 sm:max-h-48 overflow-y-auto">
-                      {task.comments.map((comment) => (
-                        <div 
-                          key={comment.id} 
-                          className="bg-muted/50 rounded-md p-2 text-xs sm:text-sm group"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-foreground flex-1">{comment.text}</p>
-                            {onDeleteComment && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 min-h-[44px] min-w-[44px] -m-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                                onClick={() => onDeleteComment(task.id, comment.id)}
-                                aria-label="Delete comment"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                          <span className="text-[10px] sm:text-xs text-muted-foreground">
-                            {format(new Date(comment.createdAt), 'MMM d, h:mm a')}
-                          </span>
+              <AnimatePresence>
+                {showComments && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2 space-y-2">
+                      {/* Comment list */}
+                      {task.comments && task.comments.length > 0 && (
+                        <div className="space-y-2 max-h-40 sm:max-h-48 overflow-y-auto">
+                          {task.comments.map((comment) => (
+                            <motion.div 
+                              key={comment.id}
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="bg-muted/50 rounded-md p-2 text-xs sm:text-sm group"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-foreground flex-1">{comment.text}</p>
+                                {onDeleteComment && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 min-h-[44px] min-w-[44px] -m-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                                    onClick={() => onDeleteComment(task.id, comment.id)}
+                                    aria-label="Delete comment"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                              <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                {format(new Date(comment.createdAt), 'MMM d, h:mm a')}
+                              </span>
+                            </motion.div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      )}
 
-                  {/* Add comment input - mobile friendly */}
-                  {onAddComment && (
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Add a comment..."
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        className="h-9 sm:h-8 text-sm flex-1"
-                      />
-                      <Button 
-                        size="icon" 
-                        className="h-9 w-9 sm:h-10 sm:w-10 min-h-[44px] min-w-[44px] flex-shrink-0"
-                        onClick={handleAddComment}
-                        disabled={!newComment.trim()}
-                        aria-label="Send comment"
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
+                      {/* Add comment input - mobile friendly */}
+                      {onAddComment && (
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Add a comment..."
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            className="h-9 sm:h-8 text-sm flex-1"
+                          />
+                          <Button 
+                            size="icon" 
+                            className="h-9 w-9 sm:h-10 sm:w-10 min-h-[44px] min-w-[44px] flex-shrink-0"
+                            onClick={handleAddComment}
+                            disabled={!newComment.trim()}
+                            aria-label="Send comment"
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
       </CardContent>
     </Card>
+    </motion.div>
   );
 }

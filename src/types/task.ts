@@ -3,6 +3,7 @@ export type Priority = 'low' | 'medium' | 'high';
 export interface User {
   id: number;
   name: string;
+  profileImage?: string | null;
   createdAt: string;
 }
 
