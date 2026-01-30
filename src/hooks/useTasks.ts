@@ -1,0 +1,579 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Task, TaskData, Priority, TaskColor, SortOption, UIState, TaskComment } from '@/types/task';
+import { v4 as uuidv4 } from 'uuid';
+
+const API_URL = '/api';
+const UI_STATE_KEY = 'todo-ui-state';
+
+// Load UI state from localStorage
+export function loadUIState(): UIState {
+  try {
+    const saved = localStorage.getItem(UI_STATE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Failed to load UI state:', e);
+  }
+  return {
+    searchQuery: '',
+    groupFilter: null,
+    priorityFilter: null,
+    colorFilter: null,
+    sortBy: 'order',
+    sortAscending: true,
+    activeTab: 'active',
+  };
+}
+
+// Save UI state to localStorage
+export function saveUIState(state: UIState): void {
+  try {
+    localStorage.setItem(UI_STATE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error('Failed to save UI state:', e);
+  }
+}
+
+// Action types for loading states
+export type ActionType = 'add' | 'update' | 'delete' | 'toggle' | 'restore' | 'reorder' | 'comment' | null;
+
+// Type for save queue operations
+type SaveOperation = {
+  tasks: Task[];
+  groups: string[];
+  actionType: ActionType;
+  resolve: (success: boolean) => void;
+};
+
+// Actions that should be debounced (rapid successive calls)
+const DEBOUNCED_ACTIONS: ActionType[] = ['reorder', 'update', 'comment'];
+const DEBOUNCE_DELAY = 300; // ms
+
+export function useTasks() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [groups, setGroups] = useState<string[]>(['Work', 'Personal', 'Shopping', 'Health']);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<ActionType>(null);
+
+  // Refs to always have access to latest state (avoids stale closures)
+  const tasksRef = useRef<Task[]>(tasks);
+  const groupsRef = useRef<string[]>(groups);
+  
+  // Save queue for serializing API calls
+  const saveQueueRef = useRef<SaveOperation[]>([]);
+  const isProcessingRef = useRef(false);
+  
+  // Debounce refs
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDebouncedSaveRef = useRef<{
+    resolve: (success: boolean) => void;
+    actionType: ActionType;
+  } | null>(null);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
+  useEffect(() => {
+    groupsRef.current = groups;
+  }, [groups]);
+
+  // Cleanup debounce timer on unmount - flush pending saves
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        // On unmount, try to save the pending state synchronously
+        // This helps prevent data loss on navigation
+        const pending = pendingDebouncedSaveRef.current;
+        if (pending) {
+          // Fire and forget - we can't wait for this in cleanup
+          fetch(`${API_URL}/tasks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              tasks: tasksRef.current, 
+              groups: groupsRef.current 
+            }),
+          }).catch(console.error);
+        }
+      }
+    };
+  }, []);
+
+  // Fetch tasks on mount
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/tasks`);
+      if (!response.ok) throw new Error('Failed to fetch tasks');
+      const data: TaskData = await response.json();
+      // Ensure all tasks have comments array (migration for existing data)
+      const tasksWithComments = (data.tasks || []).map(task => ({
+        ...task,
+        comments: task.comments || [],
+      }));
+      setTasks(tasksWithComments);
+      setGroups(data.groups || ['Work', 'Personal', 'Shopping', 'Health']);
+      tasksRef.current = tasksWithComments;
+      groupsRef.current = data.groups || ['Work', 'Personal', 'Shopping', 'Health'];
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Process save queue sequentially
+  const processSaveQueue = async () => {
+    if (isProcessingRef.current || saveQueueRef.current.length === 0) {
+      return;
+    }
+
+    isProcessingRef.current = true;
+
+    while (saveQueueRef.current.length > 0) {
+      const operation = saveQueueRef.current[0];
+      setActionLoading(operation.actionType);
+
+      try {
+        const response = await fetch(`${API_URL}/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            tasks: operation.tasks, 
+            groups: operation.groups 
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to save changes');
+        }
+        
+        setError(null);
+        operation.resolve(true);
+      } catch (err) {
+        // On failure, we need to refetch to get the true server state
+        setError(err instanceof Error ? err.message : 'Failed to save changes');
+        operation.resolve(false);
+        // Refetch to sync with server state after error
+        await fetchTasks();
+      }
+
+      // Remove processed operation
+      saveQueueRef.current.shift();
+    }
+
+    setActionLoading(null);
+    isProcessingRef.current = false;
+  };
+
+  // Queue a save operation (immediate, no debounce)
+  const queueSaveImmediate = (tasks: Task[], groups: string[], actionType: ActionType): Promise<boolean> => {
+    return new Promise((resolve) => {
+      saveQueueRef.current.push({ tasks, groups, actionType, resolve });
+      processSaveQueue();
+    });
+  };
+
+  // Queue a save operation with optional debouncing
+  // For debounced actions, only the last state is saved after the debounce delay
+  const queueSave = (tasks: Task[], groups: string[], actionType: ActionType): Promise<boolean> => {
+    // Non-debounced actions go straight to the queue
+    if (!DEBOUNCED_ACTIONS.includes(actionType)) {
+      return queueSaveImmediate(tasks, groups, actionType);
+    }
+
+    // For debounced actions, cancel any pending save and schedule a new one
+    return new Promise((resolve) => {
+      // Cancel previous debounced save timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        // Resolve the previous pending promise with the current success
+        // (it will be superseded by the new save anyway)
+        if (pendingDebouncedSaveRef.current) {
+          pendingDebouncedSaveRef.current.resolve(true);
+        }
+      }
+
+      // Store the new pending save
+      pendingDebouncedSaveRef.current = { resolve, actionType };
+
+      // Schedule the debounced save
+      debounceTimerRef.current = setTimeout(async () => {
+        debounceTimerRef.current = null;
+        const pending = pendingDebouncedSaveRef.current;
+        pendingDebouncedSaveRef.current = null;
+
+        if (pending) {
+          // Use the LATEST state from refs (not the captured state)
+          const success = await queueSaveImmediate(
+            tasksRef.current,
+            groupsRef.current,
+            pending.actionType
+          );
+          pending.resolve(success);
+        }
+      }, DEBOUNCE_DELAY);
+    });
+  };
+
+  // Flush any pending debounced save immediately (useful before navigation)
+  const flushPendingSave = async (): Promise<void> => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+
+      const pending = pendingDebouncedSaveRef.current;
+      pendingDebouncedSaveRef.current = null;
+
+      if (pending) {
+        const success = await queueSaveImmediate(
+          tasksRef.current,
+          groupsRef.current,
+          pending.actionType
+        );
+        pending.resolve(success);
+      }
+    }
+  };
+
+  const addTask = useCallback(async (
+    name: string,
+    priority: Priority,
+    groupName: string,
+    dueDate: string | null,
+    color: TaskColor
+  ) => {
+    // Use ref to get latest state
+    const currentTasks = tasksRef.current;
+    const currentGroups = groupsRef.current;
+    
+    const newTask: Task = {
+      id: uuidv4(),
+      name,
+      createdAt: new Date().toISOString(),
+      dueDate,
+      priority,
+      groupName,
+      color,
+      completed: false,
+      archived: false,
+      order: currentTasks.length,
+      comments: [],
+    };
+
+    const newTasks = [...currentTasks, newTask];
+    
+    // Update state immediately (optimistic update)
+    setTasks(newTasks);
+    tasksRef.current = newTasks;
+    
+    // Queue the save operation
+    const success = await queueSave(newTasks, currentGroups, 'add');
+    return success ? newTask : null;
+  }, []);
+
+  const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    // Use functional update to ensure latest state
+    let newTasks: Task[] = [];
+    setTasks(prev => {
+      newTasks = prev.map(task => 
+        task.id === id ? { ...task, ...updates } : task
+      );
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+    
+    // Need to wait for state to be set before queueing
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await queueSave(tasksRef.current, groupsRef.current, 'update');
+  }, []);
+
+  const deleteTask = useCallback(async (id: string) => {
+    let newTasks: Task[] = [];
+    setTasks(prev => {
+      newTasks = prev.filter(task => task.id !== id);
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await queueSave(tasksRef.current, groupsRef.current, 'delete');
+  }, []);
+
+  const toggleComplete = useCallback(async (id: string) => {
+    let newTasks: Task[] = [];
+    let taskFound = false;
+    
+    setTasks(prev => {
+      const task = prev.find(t => t.id === id);
+      if (!task) return prev;
+      taskFound = true;
+      
+      newTasks = prev.map(t => 
+        t.id === id 
+          ? { ...t, completed: !t.completed, archived: false } 
+          : t
+      );
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+    
+    if (!taskFound) return;
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await queueSave(tasksRef.current, groupsRef.current, 'toggle');
+  }, []);
+
+  const restoreTask = useCallback(async (id: string) => {
+    let newTasks: Task[] = [];
+    setTasks(prev => {
+      newTasks = prev.map(task => 
+        task.id === id 
+          ? { ...task, completed: false, archived: false } 
+          : task
+      );
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await queueSave(tasksRef.current, groupsRef.current, 'restore');
+  }, []);
+
+  const reorderTasks = useCallback(async (activeId: string, overId: string) => {
+    let newTasks: Task[] = [];
+    let validReorder = false;
+    
+    setTasks(prev => {
+      // Work only with active (non-archived) tasks for reordering
+      const currentActiveTasks = prev.filter(t => !t.archived);
+      const archivedTasks = prev.filter(t => t.archived);
+      
+      const oldIndex = currentActiveTasks.findIndex(t => t.id === activeId);
+      const newIndex = currentActiveTasks.findIndex(t => t.id === overId);
+      
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      validReorder = true;
+
+      // Reorder within active tasks only
+      const reorderedActive = [...currentActiveTasks];
+      const [movedTask] = reorderedActive.splice(oldIndex, 1);
+      reorderedActive.splice(newIndex, 0, movedTask);
+      
+      // Update order values only for active tasks
+      const updatedActiveTasks = reorderedActive.map((task, index) => ({
+        ...task,
+        order: index,
+      }));
+
+      // Combine: active tasks first (with new order), then archived tasks (unchanged)
+      newTasks = [...updatedActiveTasks, ...archivedTasks];
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+
+    if (!validReorder) return;
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await queueSave(tasksRef.current, groupsRef.current, 'reorder');
+  }, []);
+
+  const addGroup = useCallback(async (name: string) => {
+    const currentGroups = groupsRef.current;
+    if (currentGroups.includes(name)) return;
+    
+    const newGroups = [...currentGroups, name];
+    setGroups(newGroups);
+    groupsRef.current = newGroups;
+    
+    await queueSave(tasksRef.current, newGroups, 'update');
+  }, []);
+
+  const renameGroup = useCallback(async (oldName: string, newName: string) => {
+    const currentGroups = groupsRef.current;
+    if (!oldName || !newName || oldName === newName) return;
+    if (currentGroups.includes(newName)) return; // Prevent duplicate names
+    
+    // Update group list
+    const newGroups = currentGroups.map(g => g === oldName ? newName : g);
+    
+    // Update tasks that belong to this group
+    let newTasks: Task[] = [];
+    setTasks(prev => {
+      newTasks = prev.map(task =>
+        task.groupName === oldName ? { ...task, groupName: newName } : task
+      );
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+    
+    setGroups(newGroups);
+    groupsRef.current = newGroups;
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await queueSave(tasksRef.current, newGroups, 'update');
+  }, []);
+
+  const removeGroup = useCallback(async (name: string, reassignTo?: string) => {
+    const currentGroups = groupsRef.current;
+    // Don't remove the last group
+    if (currentGroups.length <= 1) return;
+    
+    const newGroups = currentGroups.filter(g => g !== name);
+    
+    // If reassignTo is provided, move tasks to that group
+    // Otherwise, move to the first available group
+    const targetGroup = reassignTo || newGroups[0];
+    
+    let newTasks: Task[] = [];
+    setTasks(prev => {
+      newTasks = prev.map(task =>
+        task.groupName === name ? { ...task, groupName: targetGroup } : task
+      );
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+    
+    setGroups(newGroups);
+    groupsRef.current = newGroups;
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await queueSave(tasksRef.current, newGroups, 'delete');
+  }, []);
+
+  const addComment = useCallback(async (taskId: string, text: string) => {
+    const newComment: TaskComment = {
+      id: uuidv4(),
+      text,
+      createdAt: new Date().toISOString(),
+    };
+
+    let newTasks: Task[] = [];
+    setTasks(prev => {
+      newTasks = prev.map(task =>
+        task.id === taskId
+          ? { ...task, comments: [...task.comments, newComment] }
+          : task
+      );
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const success = await queueSave(tasksRef.current, groupsRef.current, 'comment');
+    return success ? newComment : null;
+  }, []);
+
+  const deleteComment = useCallback(async (taskId: string, commentId: string) => {
+    let newTasks: Task[] = [];
+    setTasks(prev => {
+      newTasks = prev.map(task =>
+        task.id === taskId
+          ? { ...task, comments: task.comments.filter(c => c.id !== commentId) }
+          : task
+      );
+      tasksRef.current = newTasks;
+      return newTasks;
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await queueSave(tasksRef.current, groupsRef.current, 'comment');
+  }, []);
+
+  // Derived data
+  const activeTasks = tasks.filter(t => !t.archived);
+  const archivedTasks = tasks.filter(t => t.archived);
+
+  // Clear error after a timeout
+  useEffect(() => {
+    if (error) {
+      const timeout = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [error]);
+
+  return {
+    tasks,
+    activeTasks,
+    archivedTasks,
+    groups,
+    loading,
+    error,
+    actionLoading,
+    addTask,
+    updateTask,
+    deleteTask,
+    toggleComplete,
+    restoreTask,
+    reorderTasks,
+    addGroup,
+    renameGroup,
+    removeGroup,
+    addComment,
+    deleteComment,
+    refetch: fetchTasks,
+    clearError: () => setError(null),
+    flushPendingSave, // Call before navigation to ensure data is saved
+  };
+}
+
+export function sortTasks(tasks: Task[], sortBy: SortOption, ascending: boolean = true): Task[] {
+  const sorted = [...tasks].sort((a, b) => {
+    let comparison = 0;
+    
+    switch (sortBy) {
+      case 'dueDate':
+        if (!a.dueDate && !b.dueDate) comparison = 0;
+        else if (!a.dueDate) comparison = 1;
+        else if (!b.dueDate) comparison = -1;
+        else comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        break;
+      case 'priority':
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        comparison = priorityOrder[a.priority] - priorityOrder[b.priority];
+        break;
+      case 'createdAt':
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        break;
+      case 'name':
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case 'order':
+        comparison = a.order - b.order;
+        break;
+    }
+    
+    return ascending ? comparison : -comparison;
+  });
+  
+  return sorted;
+}
+
+export function filterTasks(
+  tasks: Task[],
+  searchQuery: string,
+  groupFilter: string | null,
+  priorityFilter: Priority | null,
+  colorFilter: TaskColor | null = null
+): Task[] {
+  return tasks.filter(task => {
+    const matchesSearch = !searchQuery || 
+      task.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGroup = !groupFilter || task.groupName === groupFilter;
+    const matchesPriority = !priorityFilter || task.priority === priorityFilter;
+    const matchesColor = !colorFilter || task.color === colorFilter;
+    
+    return matchesSearch && matchesGroup && matchesPriority && matchesColor;
+  });
+}

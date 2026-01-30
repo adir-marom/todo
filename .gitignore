@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.DS_Store
+playwright-report
+test-results
+yarn-error.log
+package-lock.json
+data/tasks.json

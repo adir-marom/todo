@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Pastel Light Theme - Soft lavender/mint inspired */
+    --background: 270 50% 98%;
+    --foreground: 270 30% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 270 30% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 30% 20%;
+    --primary: 270 60% 70%;
+    --primary-foreground: 270 30% 15%;
+    --secondary: 180 40% 92%;
+    --secondary-foreground: 180 30% 25%;
+    --muted: 270 30% 94%;
+    --muted-foreground: 270 15% 45%;
+    --accent: 330 50% 92%;
+    --accent-foreground: 330 30% 25%;
+    --destructive: 0 60% 75%;
+    --destructive-foreground: 0 40% 20%;
+    --border: 270 30% 88%;
+    --input: 270 30% 90%;
+    --ring: 270 50% 70%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Pastel Dark Theme - Soft muted tones */
+    --background: 270 30% 12%;
+    --foreground: 270 20% 92%;
+    --card: 270 25% 16%;
+    --card-foreground: 270 20% 92%;
+    --popover: 270 25% 16%;
+    --popover-foreground: 270 20% 92%;
+    --primary: 270 45% 65%;
+    --primary-foreground: 270 30% 10%;
+    --secondary: 180 25% 22%;
+    --secondary-foreground: 180 20% 85%;
+    --muted: 270 20% 20%;
+    --muted-foreground: 270 15% 60%;
+    --accent: 330 30% 25%;
+    --accent-foreground: 330 20% 90%;
+    --destructive: 0 45% 45%;
+    --destructive-foreground: 0 20% 95%;
+    --border: 270 20% 22%;
+    --input: 270 20% 22%;
+    --ring: 270 40% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
