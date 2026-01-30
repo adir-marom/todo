@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { GroupManagementDialog } from '@/components/GroupManagementDialog';
 import { UserSwitcher, getUserColor } from '@/components/UserSwitcher';
+import { UserSelection } from '@/components/UserSelection';
 import { SyncStatus, SyncStatusCompact } from '@/components/SyncStatus';
 import { ExportImportDialog } from '@/components/ExportImportDialog';
 import { UndoToast } from '@/components/UndoToast';
@@ -75,6 +76,7 @@ function App() {
   const [sortBy, setSortBy] = useState<SortOption>('order');
   const [sortAscending, setSortAscending] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('active');
+  const [isUserSelected, setIsUserSelected] = useState(false);
 
   // Load UI state when user changes
   useEffect(() => {
@@ -87,8 +89,14 @@ function App() {
       setSortBy(savedUIState.sortBy);
       setSortAscending(savedUIState.sortAscending);
       setActiveTab(savedUIState.activeTab);
+      setIsUserSelected(true);
     }
   }, [currentUser?.id]);
+
+  const handleSelectUser = (userId: number) => {
+    switchUser(userId);
+    setIsUserSelected(true);
+  };
   const [showFullForm, setShowFullForm] = useState(false);
   const [isMinimalView, setIsMinimalView] = useState(() => {
     // Check URL parameter first (for direct links)
@@ -235,7 +243,6 @@ function App() {
     );
   }
 
-  // Minimal view for floating windows
   if (isMinimalView) {
     return (
       <MinimalView
@@ -249,279 +256,304 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <div className="container mx-auto py-3 sm:py-6 md:py-8 px-2 sm:px-4 lg:px-6 max-w-4xl">
-        {/* Header - Compact on mobile */}
-        <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-primary" />
-            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Todo List</h1>
-              {/* Current user badge - highly visible */}
-              {currentUser && (
-                <span className={cn(
-                  "text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-full",
-                  getUserColor(currentUser.name).bg,
-                  getUserColor(currentUser.name).text
-                )}>
-                  {currentUser.name}'s Tasks
-                </span>
-              )}
+    <AnimatePresence mode="wait">
+      {!isUserSelected && users.length > 0 ? (
+        <motion.div
+          key="user-selection"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.3 }}
+        >
+          <UserSelection 
+            users={users} 
+            onSelectUser={handleSelectUser} 
+            onUpdateUser={updateUser}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="app-content"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="min-h-screen bg-background pb-20 md:pb-0"
+        >
+          <div className="container mx-auto py-3 sm:py-6 md:py-8 px-2 sm:px-4 lg:px-6 max-w-4xl">
+            {/* Header - Compact on mobile */}
+            <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-primary" />
+                <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Todo List</h1>
+                  {/* Current user badge - highly visible */}
+                  {currentUser && (
+                    <span className={cn(
+                      "text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-full",
+                      getUserColor(currentUser.name).bg,
+                      getUserColor(currentUser.name).text
+                    )}>
+                      {currentUser.name}'s Tasks
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+                {/* Compact sync status indicator */}
+                <SyncStatusCompact state={syncState} />
+                <UserSwitcher
+                  users={users}
+                  currentUser={currentUser}
+                  onSwitchUser={switchUser}
+                  onUpdateUser={updateUser}
+                />
+                <ExportImportDialog
+                  tasks={tasks}
+                  groups={groups}
+                  currentUser={currentUser}
+                  onImport={importTasks}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleMinimalView}
+                  aria-label="Switch to minimal view"
+                  title="Minimal view (M)"
+                  className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10"
+                >
+                  <Minimize2 className="h-4 w-4" />
+                </Button>
+                <GroupManagementDialog
+                  groups={groups}
+                  taskCountByGroup={taskCountByGroup}
+                  onAddGroup={addGroup}
+                  onRenameGroup={renameGroup}
+                  onDeleteGroup={removeGroup}
+                />
+                <ThemeToggle />
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
-            {/* Compact sync status indicator */}
-            <SyncStatusCompact state={syncState} />
-            <UserSwitcher
-              users={users}
-              currentUser={currentUser}
-              onSwitchUser={switchUser}
-              onUpdateUser={updateUser}
-            />
-            <ExportImportDialog
-              tasks={tasks}
-              groups={groups}
-              currentUser={currentUser}
-              onImport={importTasks}
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleMinimalView}
-              aria-label="Switch to minimal view"
-              title="Minimal view (M)"
-              className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </Button>
-            <GroupManagementDialog
-              groups={groups}
-              taskCountByGroup={taskCountByGroup}
-              onAddGroup={addGroup}
-              onRenameGroup={renameGroup}
-              onDeleteGroup={removeGroup}
-            />
-            <ThemeToggle />
-          </div>
-        </div>
 
-        {/* Sync Status Bar - Show when syncing, error, or offline */}
-        {(syncState === 'error' || syncState === 'offline') && (
-          <div className="mb-3 sm:mb-4">
-            <SyncStatus
-              state={syncState}
-              lastSyncedAt={lastSyncedAt}
-              errorMessage={error}
-              onRetry={retrySave}
-              onRefresh={refetch}
-              className="w-full justify-center py-2"
-            />
-          </div>
-        )}
-
-        {/* Error Message (for non-sync errors) */}
-        {error && syncState !== 'error' && (
-          <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center justify-between text-sm sm:text-base">
-            <span className="flex-1 mr-2">{error}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive flex-shrink-0"
-              onClick={clearError}
-              aria-label="Dismiss error"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
-        {/* Progress Bar */}
-        {activeTasks.length > 0 && (
-          <div className="mb-4 sm:mb-6">
-            <ProgressBar 
-              completed={activeTasks.filter(t => t.completed).length} 
-              total={activeTasks.length} 
-            />
-          </div>
-        )}
-
-        {/* Quick Add - Hidden on mobile (shown in bottom bar instead) */}
-        <div className="mb-3 sm:mb-4 hidden md:block">
-          <QuickAdd onAdd={handleQuickAdd} />
-        </div>
-
-        {/* Full Task Form (Collapsible) */}
-        <div className="mb-4 sm:mb-6 md:mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => setShowFullForm(!showFullForm)}
-            className="w-full justify-between mb-2 text-muted-foreground hover:text-foreground text-sm sm:text-base h-9 sm:h-10"
-            aria-expanded={showFullForm}
-            aria-controls="full-task-form"
-          >
-            <span className="flex items-center gap-2">
-              {showFullForm ? 'Hide' : 'Show'} full task form
-            </span>
-            <motion.span
-              animate={{ rotate: showFullForm ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="h-4 w-4" />
-            </motion.span>
-          </Button>
-          <AnimatePresence>
-            {showFullForm && (
-              <motion.div
-                id="full-task-form"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="overflow-hidden"
-              >
-                <TaskForm 
-                  groups={groups} 
-                  onSubmit={addTask} 
-                  onAddGroup={addGroup} 
+            {/* Sync Status Bar - Show when syncing, error, or offline */}
+            {(syncState === 'error' || syncState === 'offline') && (
+              <div className="mb-3 sm:mb-4">
+                <SyncStatus
+                  state={syncState}
+                  lastSyncedAt={lastSyncedAt}
+                  errorMessage={error}
+                  onRetry={retrySave}
+                  onRefresh={refetch}
+                  className="w-full justify-center py-2"
                 />
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
-        </div>
 
-        {/* Tabs for Active/Archived */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4">
-          <TabsList className="grid w-full grid-cols-2 h-10 sm:h-11">
-            <TabsTrigger value="active" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-              <ListTodo className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Active</span> ({activeTasks.length})
-            </TabsTrigger>
-            <TabsTrigger value="archived" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-              <Archive className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Archived</span> ({archivedTasks.length})
-            </TabsTrigger>
-          </TabsList>
+            {/* Error Message (for non-sync errors) */}
+            {error && syncState !== 'error' && (
+              <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center justify-between text-sm sm:text-base">
+                <span className="flex-1 mr-2">{error}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive flex-shrink-0"
+                  onClick={clearError}
+                  aria-label="Dismiss error"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
 
-          <AnimatePresence mode="wait">
-            <TabsContent value="active" className="space-y-3 sm:space-y-4" asChild>
-              <motion.div
-                key="active"
-                variants={viewTransitionVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-              >
-                <Card>
-                  <CardHeader className="py-3 px-3 sm:py-4 sm:px-6">
-                    <CardTitle className="text-base sm:text-lg">Filter & Sort</CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
-                    <FilterBar
-                      searchQuery={searchQuery}
-                      onSearchChange={setSearchQuery}
-                      groupFilter={groupFilter}
-                      onGroupFilterChange={setGroupFilter}
-                      priorityFilter={priorityFilter}
-                      onPriorityFilterChange={setPriorityFilter}
-                      colorFilter={colorFilter}
-                      onColorFilterChange={setColorFilter}
-                      sortBy={sortBy}
-                      onSortChange={setSortBy}
-                      sortAscending={sortAscending}
-                      onSortDirectionChange={setSortAscending}
-                      groups={groups}
-                    />
-                  </CardContent>
-                </Card>
-
-                <TaskList
-                  tasks={filteredActiveTasks}
-                  groups={groups}
-                  totalCount={activeTasks.length}
-                  hasActiveFilters={hasActiveFilters}
-                  isArchiveView={false}
-                  userName={currentUser?.name}
-                  onToggleComplete={toggleComplete}
-                  onDelete={deleteTask}
-                  onUpdate={updateTask}
-                  onReorder={reorderTasks}
-                  onAddComment={addComment}
-                  onDeleteComment={deleteComment}
-                  onClearFilters={clearFilters}
-                  onShowFullForm={() => setShowFullForm(true)}
-                  isDraggable={sortBy === 'order'}
+            {/* Progress Bar */}
+            {activeTasks.length > 0 && (
+              <div className="mb-4 sm:mb-6">
+                <ProgressBar 
+                  completed={activeTasks.filter(t => t.completed).length} 
+                  total={activeTasks.length} 
                 />
-              </motion.div>
-            </TabsContent>
+              </div>
+            )}
 
-            <TabsContent value="archived" className="space-y-3 sm:space-y-4" asChild>
-              <motion.div
-                key="archived"
-                variants={viewTransitionVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
+            {/* Quick Add - Hidden on mobile (shown in bottom bar instead) */}
+            <div className="mb-3 sm:mb-4 hidden md:block">
+              <QuickAdd onAdd={handleQuickAdd} />
+            </div>
+
+            {/* Full Task Form (Collapsible) */}
+            <div className="mb-4 sm:mb-6 md:mb-8">
+              <Button
+                variant="ghost"
+                onClick={() => setShowFullForm(!showFullForm)}
+                className="w-full justify-between mb-2 text-muted-foreground hover:text-foreground text-sm sm:text-base h-9 sm:h-10"
+                aria-expanded={showFullForm}
+                aria-controls="full-task-form"
               >
-                <Card>
-                  <CardHeader className="py-3 px-3 sm:py-4 sm:px-6">
-                    <CardTitle className="text-base sm:text-lg">Archived Tasks</CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-                      Completed tasks are moved here. You can restore them to active tasks.
-                    </p>
-                    <FilterBar
-                      searchQuery={searchQuery}
-                      onSearchChange={setSearchQuery}
-                      groupFilter={groupFilter}
-                      onGroupFilterChange={setGroupFilter}
-                      priorityFilter={priorityFilter}
-                      onPriorityFilterChange={setPriorityFilter}
-                      colorFilter={colorFilter}
-                      onColorFilterChange={setColorFilter}
-                      sortBy={sortBy}
-                      onSortChange={setSortBy}
-                      sortAscending={sortAscending}
-                      onSortDirectionChange={setSortAscending}
-                      groups={groups}
+                <span className="flex items-center gap-2">
+                  {showFullForm ? 'Hide' : 'Show'} full task form
+                </span>
+                <motion.span
+                  animate={{ rotate: showFullForm ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </motion.span>
+              </Button>
+              <AnimatePresence>
+                {showFullForm && (
+                  <motion.div
+                    id="full-task-form"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="overflow-hidden"
+                  >
+                    <TaskForm 
+                      groups={groups} 
+                      onSubmit={addTask} 
+                      onAddGroup={addGroup} 
                     />
-                  </CardContent>
-                </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-                <TaskList
-                  tasks={filteredArchivedTasks}
-                  groups={groups}
-                  totalCount={archivedTasks.length}
-                  hasActiveFilters={hasActiveFilters}
-                  isArchiveView={true}
-                  onToggleComplete={toggleComplete}
-                  onDelete={deleteTask}
-                  onUpdate={updateTask}
-                  onReorder={reorderTasks}
-                  onRestore={restoreTask}
-                  onAddComment={addComment}
-                  onDeleteComment={deleteComment}
-                  onClearFilters={clearFilters}
-                  isDraggable={false}
-                />
-              </motion.div>
-            </TabsContent>
-          </AnimatePresence>
-        </Tabs>
-      </div>
-      
-      {/* Mobile Bottom Action Bar */}
-      <MobileBottomBar onAdd={handleQuickAdd} />
-      
-      {/* Undo Toast */}
-      {canUndo && undoLabel && (
-        <UndoToast
-          label={undoLabel}
-          onUndo={undo}
-          onDismiss={handleUndoDismiss}
-        />
+            {/* Tabs for Active/Archived */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4">
+              <TabsList className="grid w-full grid-cols-2 h-10 sm:h-11">
+                <TabsTrigger value="active" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <ListTodo className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden xs:inline">Active</span> ({activeTasks.length})
+                </TabsTrigger>
+                <TabsTrigger value="archived" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <Archive className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden xs:inline">Archived</span> ({archivedTasks.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <AnimatePresence mode="wait">
+                <TabsContent value="active" className="space-y-3 sm:space-y-4" asChild>
+                  <motion.div
+                    key="active"
+                    variants={viewTransitionVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    <Card>
+                      <CardHeader className="py-3 px-3 sm:py-4 sm:px-6">
+                        <CardTitle className="text-base sm:text-lg">Filter & Sort</CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+                        <FilterBar
+                          searchQuery={searchQuery}
+                          onSearchChange={setSearchQuery}
+                          groupFilter={groupFilter}
+                          onGroupFilterChange={setGroupFilter}
+                          priorityFilter={priorityFilter}
+                          onPriorityFilterChange={setPriorityFilter}
+                          colorFilter={colorFilter}
+                          onColorFilterChange={setColorFilter}
+                          sortBy={sortBy}
+                          onSortChange={setSortBy}
+                          sortAscending={sortAscending}
+                          onSortDirectionChange={setSortAscending}
+                          groups={groups}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    <TaskList
+                      tasks={filteredActiveTasks}
+                      groups={groups}
+                      totalCount={activeTasks.length}
+                      hasActiveFilters={hasActiveFilters}
+                      isArchiveView={false}
+                      userName={currentUser?.name}
+                      onToggleComplete={toggleComplete}
+                      onDelete={deleteTask}
+                      onUpdate={updateTask}
+                      onReorder={reorderTasks}
+                      onAddComment={addComment}
+                      onDeleteComment={deleteComment}
+                      onClearFilters={clearFilters}
+                      onShowFullForm={() => setShowFullForm(true)}
+                      isDraggable={sortBy === 'order'}
+                    />
+                  </motion.div>
+                </TabsContent>
+
+                <TabsContent value="archived" className="space-y-3 sm:space-y-4" asChild>
+                  <motion.div
+                    key="archived"
+                    variants={viewTransitionVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    <Card>
+                      <CardHeader className="py-3 px-3 sm:py-4 sm:px-6">
+                        <CardTitle className="text-base sm:text-lg">Archived Tasks</CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+                          Completed tasks are moved here. You can restore them to active tasks.
+                        </p>
+                        <FilterBar
+                          searchQuery={searchQuery}
+                          onSearchChange={setSearchQuery}
+                          groupFilter={groupFilter}
+                          onGroupFilterChange={setGroupFilter}
+                          priorityFilter={priorityFilter}
+                          onPriorityFilterChange={setPriorityFilter}
+                          colorFilter={colorFilter}
+                          onColorFilterChange={setColorFilter}
+                          sortBy={sortBy}
+                          onSortChange={setSortBy}
+                          sortAscending={sortAscending}
+                          onSortDirectionChange={setSortAscending}
+                          groups={groups}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    <TaskList
+                      tasks={filteredArchivedTasks}
+                      groups={groups}
+                      totalCount={archivedTasks.length}
+                      hasActiveFilters={hasActiveFilters}
+                      isArchiveView={true}
+                      onToggleComplete={toggleComplete}
+                      onDelete={deleteTask}
+                      onUpdate={updateTask}
+                      onReorder={reorderTasks}
+                      onRestore={restoreTask}
+                      onAddComment={addComment}
+                      onDeleteComment={deleteComment}
+                      onClearFilters={clearFilters}
+                      isDraggable={false}
+                    />
+                  </motion.div>
+                </TabsContent>
+              </AnimatePresence>
+            </Tabs>
+          </div>
+          
+          {/* Mobile Bottom Action Bar */}
+          <MobileBottomBar onAdd={handleQuickAdd} />
+          
+          {/* Undo Toast */}
+          {canUndo && undoLabel && (
+            <UndoToast
+              label={undoLabel}
+              onUndo={undo}
+              onDismiss={handleUndoDismiss}
+            />
+          )}
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
+  );
   );
 }
 
