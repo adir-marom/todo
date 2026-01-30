@@ -100,21 +100,32 @@ export const initializeDatabase = async () => {
       console.log('Database initialized with default groups');
     }
     
-    // Migration: Create "Adir" user and assign existing tasks without user_id
-    const adir = await client.query(`
-      INSERT INTO users (name) VALUES ('Adir') 
-      ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name 
-      RETURNING id
-    `);
-    const adirId = adir.rows[0].id;
+    // Migration: Create default users "Adir" and "Tzuf"
+    const usersToCreate = [
+      { name: 'Adir', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop' },
+      { name: 'Tzuf', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }
+    ];
+
+    let adirId = null;
+    for (const user of usersToCreate) {
+      const res = await client.query(`
+        INSERT INTO users (name, profile_image) VALUES ($1, $2) 
+        ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+        RETURNING id
+      `, [user.name, user.image]);
+      
+      if (user.name === 'Adir') adirId = res.rows[0].id;
+    }
     
     // Assign orphaned tasks (tasks without a user_id) to Adir
-    const updated = await client.query(`
-      UPDATE tasks SET user_id = $1 WHERE user_id IS NULL
-    `, [adirId]);
-    
-    if (updated.rowCount > 0) {
-      console.log(`Migrated ${updated.rowCount} tasks to user "Adir"`);
+    if (adirId) {
+      const updated = await client.query(`
+        UPDATE tasks SET user_id = $1 WHERE user_id IS NULL
+      `, [adirId]);
+      
+      if (updated.rowCount > 0) {
+        console.log(`Migrated ${updated.rowCount} tasks to user "Adir"`);
+      }
     }
     
     console.log('Database schema initialized successfully');
