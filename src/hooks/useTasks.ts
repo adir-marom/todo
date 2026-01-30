@@ -84,19 +84,10 @@ const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 10000; // 10 seconds
 
-// Load current user ID from localStorage
-function loadCurrentUserId(): number | null {
-  try {
-    const saved = localStorage.getItem(CURRENT_USER_KEY);
-    if (saved) {
-      const id = parseInt(saved, 10);
-      return isNaN(id) ? null : id;
-    }
-  } catch (e) {
-    console.error('Failed to load current user ID:', e);
+  // Load current user ID from localStorage
+  function loadCurrentUserId(): number | null {
+    return null; // Always force user selection on first load
   }
-  return null;
-}
 
 // Save current user ID to localStorage
 function saveCurrentUserId(userId: number): void {
@@ -234,27 +225,13 @@ export function useTasks() {
       setUsers(fetchedUsers);
       
       if (fetchedUsers.length === 0) {
-        // No users exist - this shouldn't happen after migration
         setError('No users found');
         setLoading(false);
         return;
       }
       
-      // Try to restore saved user ID
-      const savedUserId = loadCurrentUserId();
-      let userToSelect = fetchedUsers.find(u => u.id === savedUserId);
-      
-      // If saved user doesn't exist, use the first user
-      if (!userToSelect) {
-        userToSelect = fetchedUsers[0];
-      }
-      
-      setCurrentUser(userToSelect);
-      currentUserRef.current = userToSelect;
-      saveCurrentUserId(userToSelect.id);
-      
-      // Fetch tasks for the selected user
-      await fetchTasksForUser(userToSelect.id);
+      // We don't select a user automatically anymore to force the selection screen
+      setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initialize');
       setLoading(false);

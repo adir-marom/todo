@@ -184,6 +184,31 @@ function App() {
     );
   }
 
+  // If no user is selected, show the selection screen
+  if (!isUserSelected && users.length > 0) {
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="user-selection"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ 
+            opacity: 0, 
+            scale: 1.1,
+            filter: "blur(20px)",
+            transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+          }}
+        >
+          <UserSelection 
+            users={users} 
+            onSelectUser={handleSelectUser} 
+            onUpdateUser={updateUser}
+          />
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
   if (isMinimalView) {
     return <MinimalView tasks={tasks} onToggleComplete={toggleComplete} onRestore={restoreTask} onQuickAdd={handleQuickAdd} onExpandView={toggleMinimalView} />;
   }
