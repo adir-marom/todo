@@ -6,6 +6,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Force use of public npm registry (override any private registry in lock file)
+RUN npm config set registry https://registry.npmjs.org/
+
 # Install ALL dependencies (including devDependencies for build)
 RUN npm install
 
@@ -22,6 +25,9 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+
+# Force use of public npm registry (override any private registry in lock file)
+RUN npm config set registry https://registry.npmjs.org/
 
 # Install only production dependencies
 RUN npm install --omit=dev
