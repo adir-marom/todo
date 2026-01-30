@@ -12,6 +12,7 @@ import { MobileBottomBar } from '@/components/MobileBottomBar';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { GroupManagementDialog } from '@/components/GroupManagementDialog';
+import { UserSwitcher } from '@/components/UserSwitcher';
 import { useTasks, sortTasks, filterTasks, loadUIState, saveUIState } from '@/hooks/useTasks';
 import { Priority, SortOption, TaskColor } from '@/types/task';
 
@@ -23,6 +24,8 @@ function App() {
     activeTasks,
     archivedTasks,
     groups,
+    users,
+    currentUser,
     loading,
     error,
     actionLoading,
@@ -37,6 +40,9 @@ function App() {
     removeGroup,
     addComment,
     deleteComment,
+    switchUser,
+    createUser,
+    deleteUser,
     clearError,
   } = useTasks();
 
@@ -191,6 +197,13 @@ function App() {
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Todo List</h1>
           </div>
           <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+            <UserSwitcher
+              users={users}
+              currentUser={currentUser}
+              onSwitchUser={switchUser}
+              onCreateUser={createUser}
+              onDeleteUser={deleteUser}
+            />
             <Button
               variant="ghost"
               size="icon"

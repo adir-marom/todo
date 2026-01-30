@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Task, TaskData, Priority, TaskColor, SortOption, UIState, TaskComment } from '@/types/task';
+import { Task, TaskData, Priority, TaskColor, SortOption, UIState, TaskComment, User } from '@/types/task';
 import { v4 as uuidv4 } from 'uuid';
 
 const API_URL = '/api';
 const UI_STATE_KEY = 'todo-ui-state';
+const CURRENT_USER_KEY = 'todo-current-user-id';
 
 // Load UI state from localStorage
 export function loadUIState(): UIState {
@@ -50,9 +51,34 @@ type SaveOperation = {
 const DEBOUNCED_ACTIONS: ActionType[] = ['reorder', 'update', 'comment'];
 const DEBOUNCE_DELAY = 300; // ms
 
+// Load current user ID from localStorage
+function loadCurrentUserId(): number | null {
+  try {
+    const saved = localStorage.getItem(CURRENT_USER_KEY);
+    if (saved) {
+      const id = parseInt(saved, 10);
+      return isNaN(id) ? null : id;
+    }
+  } catch (e) {
+    console.error('Failed to load current user ID:', e);
+  }
+  return null;
+}
+
+// Save current user ID to localStorage
+function saveCurrentUserId(userId: number): void {
+  try {
+    localStorage.setItem(CURRENT_USER_KEY, String(userId));
+  } catch (e) {
+    console.error('Failed to save current user ID:', e);
+  }
+}
+
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [groups, setGroups] = useState<string[]>(['Work', 'Personal', 'Shopping', 'Health']);
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<ActionType>(null);
@@ -60,6 +86,7 @@ export function useTasks() {
   // Refs to always have access to latest state (avoids stale closures)
   const tasksRef = useRef<Task[]>(tasks);
   const groupsRef = useRef<string[]>(groups);
+  const currentUserRef = useRef<User | null>(currentUser);
   
   // Save queue for serializing API calls
   const saveQueueRef = useRef<SaveOperation[]>([]);
@@ -81,6 +108,10 @@ export function useTasks() {
     groupsRef.current = groups;
   }, [groups]);
 
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
   // Cleanup debounce timer on unmount - flush pending saves
   useEffect(() => {
     return () => {
@@ -89,14 +120,15 @@ export function useTasks() {
         // On unmount, try to save the pending state synchronously
         // This helps prevent data loss on navigation
         const pending = pendingDebouncedSaveRef.current;
-        if (pending) {
+        if (pending && currentUserRef.current) {
           // Fire and forget - we can't wait for this in cleanup
           fetch(`${API_URL}/tasks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               tasks: tasksRef.current, 
-              groups: groupsRef.current 
+              groups: groupsRef.current,
+              userId: currentUserRef.current.id
             }),
           }).catch(console.error);
         }
@@ -104,15 +136,56 @@ export function useTasks() {
     };
   }, []);
 
-  // Fetch tasks on mount
+  // Fetch users and initialize current user on mount
   useEffect(() => {
-    fetchTasks();
+    initializeUsers();
   }, []);
 
-  const fetchTasks = async () => {
+  const fetchUsers = async (): Promise<User[]> => {
+    const response = await fetch(`${API_URL}/users`);
+    if (!response.ok) throw new Error('Failed to fetch users');
+    const data = await response.json();
+    return data.users || [];
+  };
+
+  const initializeUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/tasks`);
+      const fetchedUsers = await fetchUsers();
+      setUsers(fetchedUsers);
+      
+      if (fetchedUsers.length === 0) {
+        // No users exist - this shouldn't happen after migration
+        setError('No users found');
+        setLoading(false);
+        return;
+      }
+      
+      // Try to restore saved user ID
+      const savedUserId = loadCurrentUserId();
+      let userToSelect = fetchedUsers.find(u => u.id === savedUserId);
+      
+      // If saved user doesn't exist, use the first user
+      if (!userToSelect) {
+        userToSelect = fetchedUsers[0];
+      }
+      
+      setCurrentUser(userToSelect);
+      currentUserRef.current = userToSelect;
+      saveCurrentUserId(userToSelect.id);
+      
+      // Fetch tasks for the selected user
+      await fetchTasksForUser(userToSelect.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to initialize');
+      setLoading(false);
+    }
+  };
+
+  const fetchTasksForUser = async (userId: number) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/tasks?userId=${userId}`);
       if (!response.ok) throw new Error('Failed to fetch tasks');
       const data: TaskData = await response.json();
       // Ensure all tasks have comments array (migration for existing data)
@@ -132,6 +205,12 @@ export function useTasks() {
     }
   };
 
+  const fetchTasks = async () => {
+    if (currentUserRef.current) {
+      await fetchTasksForUser(currentUserRef.current.id);
+    }
+  };
+
   // Process save queue sequentially
   const processSaveQueue = async () => {
     if (isProcessingRef.current || saveQueueRef.current.length === 0) {
@@ -145,12 +224,17 @@ export function useTasks() {
       setActionLoading(operation.actionType);
 
       try {
+        if (!currentUserRef.current) {
+          throw new Error('No user selected');
+        }
+        
         const response = await fetch(`${API_URL}/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             tasks: operation.tasks, 
-            groups: operation.groups 
+            groups: operation.groups,
+            userId: currentUserRef.current.id
           }),
         });
         
@@ -473,6 +557,75 @@ export function useTasks() {
     await queueSave(tasksRef.current, groupsRef.current, 'comment');
   }, []);
 
+  // User management functions
+  const switchUser = useCallback(async (userId: number) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    
+    // Flush any pending saves for current user before switching
+    await flushPendingSave();
+    
+    setCurrentUser(user);
+    currentUserRef.current = user;
+    saveCurrentUserId(user.id);
+    
+    // Fetch tasks for the new user
+    await fetchTasksForUser(user.id);
+  }, [users]);
+
+  const createNewUser = useCallback(async (name: string): Promise<User | null> => {
+    try {
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create user');
+      }
+      
+      const data = await response.json();
+      const newUser = data.user;
+      
+      // Update users list
+      setUsers(prev => [...prev, newUser]);
+      
+      return newUser;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create user');
+      return null;
+    }
+  }, []);
+
+  const deleteExistingUser = useCallback(async (userId: number): Promise<boolean> => {
+    try {
+      // Don't allow deleting the current user
+      if (currentUser?.id === userId) {
+        setError('Cannot delete the currently active user');
+        return false;
+      }
+      
+      const response = await fetch(`${API_URL}/users/${userId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete user');
+      }
+      
+      // Update users list
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user');
+      return false;
+    }
+  }, [currentUser]);
+
   // Derived data
   const activeTasks = tasks.filter(t => !t.archived);
   const archivedTasks = tasks.filter(t => t.archived);
@@ -490,6 +643,8 @@ export function useTasks() {
     activeTasks,
     archivedTasks,
     groups,
+    users,
+    currentUser,
     loading,
     error,
     actionLoading,
@@ -504,6 +659,9 @@ export function useTasks() {
     removeGroup,
     addComment,
     deleteComment,
+    switchUser,
+    createUser: createNewUser,
+    deleteUser: deleteExistingUser,
     refetch: fetchTasks,
     clearError: () => setError(null),
     flushPendingSave, // Call before navigation to ensure data is saved

@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initializeDatabase, getAllTasks, getAllGroups, saveTasks, saveGroups } from './db.js';
+import { initializeDatabase, getAllTasks, getAllGroups, saveTasks, saveGroups, getAllUsers, createUser, deleteUser, getUserById } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -197,11 +197,88 @@ const validateTasksPayload = (tasks, groups) => {
 
 // ==================== API Routes ====================
 
-// GET /api/tasks - Get all tasks and groups
+// GET /api/users - Get all users
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    res.json({ users });
+  } catch (error) {
+    console.error('GET /api/users error:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// POST /api/users - Create a new user
+app.post('/api/users', async (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ error: 'User name is required' });
+    }
+    
+    if (name.length > 100) {
+      return res.status(400).json({ error: 'User name must be 100 characters or less' });
+    }
+    
+    const user = await createUser(name.trim());
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error('POST /api/users error:', error);
+    
+    // Handle unique constraint violation
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'A user with this name already exists' });
+    }
+    
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+// DELETE /api/users/:id - Delete a user
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
+    // Don't allow deleting the last user
+    const users = await getAllUsers();
+    if (users.length <= 1) {
+      return res.status(400).json({ error: 'Cannot delete the last user' });
+    }
+    
+    const deleted = await deleteUser(userId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('DELETE /api/users/:id error:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// GET /api/tasks - Get all tasks and groups for a user
 app.get('/api/tasks', async (req, res) => {
   try {
+    const userId = parseInt(req.query.userId, 10);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Valid userId query parameter is required' });
+    }
+    
+    // Verify user exists
+    const user = await getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
     const [tasks, groups] = await Promise.all([
-      getAllTasks(),
+      getAllTasks(userId),
       getAllGroups()
     ]);
     res.json({ tasks, groups });
@@ -211,10 +288,22 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// POST /api/tasks - Save all tasks (overwrites)
+// POST /api/tasks - Save all tasks for a user (overwrites)
 app.post('/api/tasks', async (req, res) => {
   try {
-    const { tasks, groups } = req.body;
+    const { tasks, groups, userId } = req.body;
+    
+    if (!userId || isNaN(parseInt(userId, 10))) {
+      return res.status(400).json({ error: 'Valid userId is required' });
+    }
+    
+    const parsedUserId = parseInt(userId, 10);
+    
+    // Verify user exists
+    const user = await getUserById(parsedUserId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     
     if (!Array.isArray(tasks)) {
       return res.status(400).json({ error: 'Tasks must be an array' });
@@ -233,7 +322,7 @@ app.post('/api/tasks', async (req, res) => {
       });
     }
 
-    await saveTasks(tasks, groupsToUse);
+    await saveTasks(tasks, groupsToUse, parsedUserId);
     res.json({ success: true, data: { tasks, groups: groupsToUse } });
   } catch (error) {
     console.error('POST /api/tasks error:', error);

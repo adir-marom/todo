@@ -1,5 +1,11 @@
 export type Priority = 'low' | 'medium' | 'high';
 
+export interface User {
+  id: number;
+  name: string;
+  createdAt: string;
+}
+
 export type TaskColor = 
   | 'red' 
   | 'orange' 
