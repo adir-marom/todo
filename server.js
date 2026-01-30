@@ -1,16 +1,14 @@
 import express from 'express';
 import cors from 'cors';
-import fs from 'fs/promises';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initializeDatabase, getAllTasks, getAllGroups, saveTasks, saveGroups } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3001;
-const DATA_FILE = path.join(__dirname, 'data', 'tasks.json');
+const PORT = process.env.PORT || 3001;
 
 // Valid values for enums
 const VALID_PRIORITIES = ['low', 'medium', 'high'];
@@ -23,15 +21,9 @@ const MAX_GROUP_NAME_LENGTH = 100;
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-// Ensure data directory exists (sync on startup is fine)
-const dataDir = path.join(__dirname, 'data');
-if (!existsSync(dataDir)) {
-  mkdirSync(dataDir, { recursive: true });
-}
-
-// Initialize tasks.json if it doesn't exist (sync on startup is fine)
-if (!existsSync(DATA_FILE)) {
-  writeFileSync(DATA_FILE, JSON.stringify({ tasks: [], groups: ['Work', 'Personal', 'Shopping', 'Health'] }, null, 2));
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'dist')));
 }
 
 // ==================== Validation Functions ====================
@@ -203,35 +195,16 @@ const validateTasksPayload = (tasks, groups) => {
   return { valid: allErrors.length === 0, errors: allErrors };
 };
 
-// ==================== Async File I/O ====================
+// ==================== API Routes ====================
 
-// Helper function to read tasks (async)
-const readTasks = async () => {
-  try {
-    const data = await fs.readFile(DATA_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading tasks:', error);
-    return { tasks: [], groups: ['Work', 'Personal', 'Shopping', 'Health'] };
-  }
-};
-
-// Helper function to write tasks (async)
-const writeTasks = async (data) => {
-  try {
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Error writing tasks:', error);
-    return false;
-  }
-};
-
-// GET /api/tasks - Get all tasks
+// GET /api/tasks - Get all tasks and groups
 app.get('/api/tasks', async (req, res) => {
   try {
-    const data = await readTasks();
-    res.json(data);
+    const [tasks, groups] = await Promise.all([
+      getAllTasks(),
+      getAllGroups()
+    ]);
+    res.json({ tasks, groups });
   } catch (error) {
     console.error('GET /api/tasks error:', error);
     res.status(500).json({ error: 'Failed to fetch tasks' });
@@ -248,8 +221,8 @@ app.post('/api/tasks', async (req, res) => {
     }
 
     // Get existing groups if not provided
-    const existingData = await readTasks();
-    const groupsToUse = groups || existingData.groups;
+    const existingGroups = await getAllGroups();
+    const groupsToUse = groups || existingGroups;
 
     // Validate the entire payload
     const validation = validateTasksPayload(tasks, groupsToUse);
@@ -260,16 +233,8 @@ app.post('/api/tasks', async (req, res) => {
       });
     }
 
-    const data = { 
-      tasks, 
-      groups: groupsToUse 
-    };
-    
-    if (await writeTasks(data)) {
-      res.json({ success: true, data });
-    } else {
-      res.status(500).json({ error: 'Failed to save tasks' });
-    }
+    await saveTasks(tasks, groupsToUse);
+    res.json({ success: true, data: { tasks, groups: groupsToUse } });
   } catch (error) {
     console.error('POST /api/tasks error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -290,33 +255,45 @@ app.post('/api/groups', async (req, res) => {
       });
     }
 
-    const data = await readTasks();
-    
-    // Check if any tasks reference groups that are being removed
-    const removedGroups = data.groups.filter(g => !groups.includes(g));
-    const orphanedTasks = data.tasks.filter(t => removedGroups.includes(t.groupName));
-    
-    if (orphanedTasks.length > 0) {
-      return res.status(400).json({ 
-        error: 'Cannot remove groups that have tasks assigned',
-        details: [`${orphanedTasks.length} task(s) are assigned to groups being removed: ${removedGroups.join(', ')}`]
-      });
-    }
-
-    data.groups = groups;
-    
-    if (await writeTasks(data)) {
-      res.json({ success: true, groups });
-    } else {
-      res.status(500).json({ error: 'Failed to save groups' });
-    }
+    await saveGroups(groups);
+    res.json({ success: true, groups });
   } catch (error) {
     console.error('POST /api/groups error:', error);
+    
+    // Handle specific error for orphaned tasks
+    if (error.message && error.message.includes('Cannot remove groups')) {
+      return res.status(400).json({ 
+        error: 'Cannot remove groups that have tasks assigned',
+        details: [error.message]
+      });
+    }
+    
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Data file: ${DATA_FILE}`);
-});
+// Serve index.html for all other routes in production (SPA support)
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  });
+}
+
+// ==================== Server Startup ====================
+
+const startServer = async () => {
+  try {
+    // Initialize database schema
+    await initializeDatabase();
+    
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
