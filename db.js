@@ -110,7 +110,9 @@ export const initializeDatabase = async () => {
     for (const user of usersToCreate) {
       const res = await client.query(`
         INSERT INTO users (name, profile_image) VALUES ($1, $2) 
-        ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+        ON CONFLICT (name) DO UPDATE SET 
+          name = EXCLUDED.name,
+          profile_image = EXCLUDED.profile_image
         RETURNING id
       `, [user.name, user.image]);
       
