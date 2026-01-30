@@ -442,8 +442,8 @@ if (process.env.NODE_ENV === 'production') {
 
 const startServer = async () => {
   // Start listening FIRST so health checks can respond
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   });
   
