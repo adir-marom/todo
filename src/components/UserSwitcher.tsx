@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { User, ChevronDown, Check, Camera, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -6,16 +6,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -121,7 +111,6 @@ export function UserSwitcher({
   onUpdateUser,
 }: UserSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [pendingUser, setPendingUser] = useState<UserType | null>(null);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -133,16 +122,12 @@ export function UserSwitcher({
       setIsOpen(false);
       return;
     }
-    // Show confirmation dialog
-    setPendingUser(user);
-  };
-
-  const confirmSwitch = () => {
-    if (pendingUser) {
-      onSwitchUser(pendingUser.id);
-      setPendingUser(null);
-      setIsOpen(false);
-    }
+    // Switch immediately without confirmation
+    setIsOpen(false);
+    // Small delay to let popover close animation complete
+    setTimeout(() => {
+      onSwitchUser(user.id);
+    }, 100);
   };
 
   const handleEditProfileImage = (user: UserType, e: React.MouseEvent) => {
@@ -268,24 +253,6 @@ export function UserSwitcher({
           </div>
         </PopoverContent>
       </Popover>
-
-      {/* Switch confirmation dialog */}
-      <AlertDialog open={!!pendingUser} onOpenChange={(open) => !open && setPendingUser(null)}>
-        <AlertDialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Switch to {pendingUser?.name}'s profile?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You'll see {pendingUser?.name}'s tasks. Your current view ({currentUser?.name}'s tasks) will be saved.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSwitch}>
-              Switch Profile
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Edit profile image dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
