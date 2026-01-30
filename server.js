@@ -22,9 +22,18 @@ app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
 // Health check endpoint (for Railway/Docker healthchecks)
+// Returns 200 as long as server is running (even if DB not ready yet)
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    database: dbReady ? 'connected' : 'connecting'
+  });
 });
+
+// Database status tracking (set during startup)
+let dbReady = false;
+let dbError = null;
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
@@ -432,17 +441,33 @@ if (process.env.NODE_ENV === 'production') {
 // ==================== Server Startup ====================
 
 const startServer = async () => {
-  try {
-    // Initialize database schema
-    await initializeDatabase();
-    
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+  // Start listening FIRST so health checks can respond
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+  
+  // Then initialize database (with retries)
+  const maxRetries = 5;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Attempting to connect to database (attempt ${attempt}/${maxRetries})...`);
+      await initializeDatabase();
+      dbReady = true;
+      dbError = null;
+      console.log('Database connection established successfully');
+      break;
+    } catch (error) {
+      dbError = error;
+      console.error(`Database connection attempt ${attempt} failed:`, error.message);
+      if (attempt < maxRetries) {
+        const delay = attempt * 2000; // Exponential backoff: 2s, 4s, 6s, 8s, 10s
+        console.log(`Retrying in ${delay/1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('All database connection attempts failed. Server running without database.');
+      }
+    }
   }
 };
 
