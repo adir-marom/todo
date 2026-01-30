@@ -253,11 +253,15 @@ function App() {
             <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-shrink-0">
                 <SyncStatusCompact state={syncState} />
                 <UserSwitcher users={users} currentUser={currentUser} onSwitchUser={switchUser} onUpdateUser={updateUser} />
-                <ExportImportDialog tasks={tasks} groups={groups} currentUser={currentUser} onImport={importTasks} />
-                <Button variant="ghost" size="icon" onClick={toggleMinimalView} aria-label="Switch to minimal view" title="Minimal view (M)" className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10">
+                <div className="hidden sm:block">
+                  <ExportImportDialog tasks={tasks} groups={groups} currentUser={currentUser} onImport={importTasks} />
+                </div>
+                <Button variant="ghost" size="icon" onClick={toggleMinimalView} aria-label="Switch to minimal view" title="Minimal view (M)" className="hidden sm:flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10">
                   <Minimize2 className="h-4 w-4" />
                 </Button>
-                <GroupManagementDialog groups={groups} taskCountByGroup={taskCountByGroup} onAddGroup={addGroup} onRenameGroup={renameGroup} onDeleteGroup={removeGroup} />
+                <div className="hidden sm:block">
+                  <GroupManagementDialog groups={groups} taskCountByGroup={taskCountByGroup} onAddGroup={addGroup} onRenameGroup={renameGroup} onDeleteGroup={removeGroup} />
+                </div>
                 <ThemeToggle />
               </div>
             </div>
@@ -287,8 +291,9 @@ function App() {
               <QuickAdd onAdd={handleQuickAdd} />
             </div>
 
-            <div className="mb-3 sm:mb-6 md:mb-8">
-              <Button variant="ghost" onClick={() => setShowFullForm(!showFullForm)} className="w-full justify-between mb-1.5 sm:mb-2 text-muted-foreground hover:text-foreground text-xs sm:text-base h-8 sm:h-10" aria-expanded={showFullForm} aria-controls="full-task-form">
+            {/* Full task form - hidden on mobile, use bottom Add Task button instead */}
+            <div className="mb-3 sm:mb-6 md:mb-8 hidden sm:block">
+              <Button variant="ghost" onClick={() => setShowFullForm(!showFullForm)} className="w-full justify-between mb-2 text-muted-foreground hover:text-foreground text-sm h-10" aria-expanded={showFullForm} aria-controls="full-task-form">
                 <span className="flex items-center gap-2">{showFullForm ? 'Hide' : 'Show'} full task form</span>
                 <motion.span animate={{ rotate: showFullForm ? 180 : 0 }} transition={{ duration: 0.2 }}><ChevronDown className="h-4 w-4" /></motion.span>
               </Button>
@@ -317,8 +322,8 @@ function App() {
                 <TabsContent value="active" className="space-y-2 sm:space-y-4 mt-0" asChild>
                   <motion.div key="active" variants={viewTransitionVariants} initial="initial" animate="animate" exit="exit">
                     <Card>
-                      <CardHeader className="py-2 px-3 sm:py-4 sm:px-6"><CardTitle className="text-sm sm:text-lg">Filter & Sort</CardTitle></CardHeader>
-                      <CardContent className="px-3 pb-2 sm:px-6 sm:pb-6 pt-0">
+                      <CardHeader className="hidden sm:flex py-4 px-6"><CardTitle className="text-lg">Filter & Sort</CardTitle></CardHeader>
+                      <CardContent className="px-3 py-2 sm:px-6 sm:pb-6 sm:pt-0">
                         <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} groupFilter={groupFilter} onGroupFilterChange={setGroupFilter} priorityFilter={priorityFilter} onPriorityFilterChange={setPriorityFilter} colorFilter={colorFilter} onColorFilterChange={setColorFilter} sortBy={sortBy} onSortChange={setSortBy} sortAscending={sortAscending} onSortDirectionChange={setSortAscending} groups={groups} />
                       </CardContent>
                     </Card>
@@ -329,9 +334,9 @@ function App() {
                 <TabsContent value="archived" className="space-y-2 sm:space-y-4 mt-0" asChild>
                   <motion.div key="archived" variants={viewTransitionVariants} initial="initial" animate="animate" exit="exit">
                     <Card>
-                      <CardHeader className="py-2 px-3 sm:py-4 sm:px-6"><CardTitle className="text-sm sm:text-lg">Archived Tasks</CardTitle></CardHeader>
-                      <CardContent className="px-3 pb-2 sm:px-6 sm:pb-6 pt-0">
-                        <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-4">Completed tasks are moved here. You can restore them to active tasks.</p>
+                      <CardHeader className="hidden sm:flex py-4 px-6"><CardTitle className="text-lg">Archived Tasks</CardTitle></CardHeader>
+                      <CardContent className="px-3 py-2 sm:px-6 sm:pb-6 sm:pt-0">
+                        <p className="hidden sm:block text-sm text-muted-foreground mb-4">Completed tasks are moved here. You can restore them to active tasks.</p>
                         <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} groupFilter={groupFilter} onGroupFilterChange={setGroupFilter} priorityFilter={priorityFilter} onPriorityFilterChange={setPriorityFilter} colorFilter={colorFilter} onColorFilterChange={setColorFilter} sortBy={sortBy} onSortChange={setSortBy} sortAscending={sortAscending} onSortDirectionChange={setSortAscending} groups={groups} />
                       </CardContent>
                     </Card>
