@@ -5,6 +5,7 @@ import { format, differenceInDays, isPast, isToday } from 'date-fns';
 import { 
   GripVertical, 
   Calendar, 
+  Archive,
   RotateCcw,
   Clock,
   MessageSquare,
@@ -121,26 +122,26 @@ export function TaskCard({
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
         style={{ backgroundColor: colorConfig?.hex || '#6b7280' }}
       />
-      <CardContent className="p-3 pl-4 sm:p-4 sm:pl-5">
-        <div className="flex items-start gap-2 sm:gap-3">
+      <CardContent className="p-2 pl-3 sm:p-3 sm:pl-4">
+        <div className="flex items-start gap-1.5 sm:gap-2">
           {isDraggable && !task.archived && (
             <button
-              className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center -m-2"
+              className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-manipulation min-h-[32px] min-w-[32px] flex items-center justify-center -m-1"
               aria-label={`Drag to reorder task: ${task.name}`}
               {...attributes}
               {...listeners}
             >
-              <GripVertical className="h-5 w-5" />
+              <GripVertical className="h-4 w-4" />
             </button>
           )}
 
           {/* Only show checkbox for active tasks - archived tasks use the restore button */}
           {!task.archived && (
-            <div className="min-h-[44px] min-w-[44px] flex items-center justify-center -m-2">
+            <div className="min-h-[32px] min-w-[32px] flex items-center justify-center -m-1">
               <Checkbox
                 checked={task.completed}
                 onCheckedChange={() => onToggleComplete(task.id)}
-                className="h-5 w-5 sm:h-4 sm:w-4"
+                className="h-4 w-4"
               />
             </div>
           )}
@@ -150,30 +151,42 @@ export function TaskCard({
             <div className="flex items-start justify-between gap-1 sm:gap-2">
               <h3 
                 className={cn(
-                  'font-medium line-clamp-2 text-sm sm:text-base pr-1',
+                  'font-medium line-clamp-1 text-sm sm:text-base pr-1',
                   task.completed && 'line-through text-muted-foreground'
                 )}
                 title={task.name}
               >
                 {task.name}
               </h3>
-              <div className="flex items-center gap-0 sm:gap-1 flex-shrink-0 -mr-1 sm:mr-0">
+              <div className="flex items-center gap-0 sm:gap-0.5 flex-shrink-0 -mr-1 sm:mr-0">
                 {!task.archived && (
-                  <EditTaskDialog
-                    task={task}
-                    groups={groups}
-                    onSave={onUpdate}
-                  />
+                  <>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 sm:h-9 sm:w-9 min-h-[32px] min-w-[32px]"
+                      onClick={() => onUpdate(task.id, { archived: true })}
+                      aria-label={`Archive task: ${task.name}`}
+                      title="Archive task"
+                    >
+                      <Archive className="h-3.5 w-3.5" />
+                    </Button>
+                    <EditTaskDialog
+                      task={task}
+                      groups={groups}
+                      onSave={onUpdate}
+                    />
+                  </>
                 )}
                 {task.archived && onRestore && (
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-9 w-9 sm:h-10 sm:w-10 min-h-[44px] min-w-[44px]"
+                    className="h-8 w-8 sm:h-9 sm:w-9 min-h-[32px] min-w-[32px]"
                     onClick={() => onRestore(task.id)}
                     aria-label={`Restore task: ${task.name}`}
                   >
-                    <RotateCcw className="h-4 w-4" />
+                    <RotateCcw className="h-3.5 w-3.5" />
                   </Button>
                 )}
                 <DeleteTaskButton
@@ -183,61 +196,60 @@ export function TaskCard({
               </div>
             </div>
 
-            {/* Badges - wrap nicely on mobile */}
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
-              <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                {task.groupName}
-              </Badge>
-              <Badge 
-                variant="secondary" 
-                className={cn('text-[10px] sm:text-xs flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5', priorityConfig.color, priorityConfig.textColor)}
-                aria-label={`Priority: ${priorityConfig.label}`}
-              >
-                {task.priority === 'high' && <ArrowUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
-                {task.priority === 'medium' && <Minus className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
-                {task.priority === 'low' && <ArrowDown className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
-                {priorityConfig.label}
-              </Badge>
+            {/* Badges and Meta - more compact row */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 leading-none h-4">
+                  {task.groupName}
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className={cn('text-[10px] flex items-center gap-0.5 px-1.5 py-0 leading-none h-4', priorityConfig.color, priorityConfig.textColor)}
+                  aria-label={`Priority: ${priorityConfig.label}`}
+                >
+                  {task.priority === 'high' && <ArrowUp className="h-2.5 w-2.5" />}
+                  {task.priority === 'medium' && <Minus className="h-2.5 w-2.5" />}
+                  {task.priority === 'low' && <ArrowDown className="h-2.5 w-2.5" />}
+                  {priorityConfig.label}
+                </Badge>
+              </div>
               
-              {task.dueDate && (
-                <div className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground">
-                  <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                  {format(new Date(task.dueDate), 'MMM d')}
-                </div>
-              )}
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                {task.dueDate && (
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-2.5 w-2.5" />
+                    {format(new Date(task.dueDate), 'MMM d')}
+                  </div>
+                )}
+                
+                {daysLeft && !task.completed && (
+                  <span className={cn(
+                    'flex items-center gap-1',
+                    daysLeft.urgent && 'text-destructive font-medium'
+                  )}>
+                    <Clock className="h-2.5 w-2.5" />
+                    {daysLeft.text}
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Meta info - stack on very small screens */}
-            <div className="flex flex-col xs:flex-row xs:items-center gap-1 xs:gap-3 sm:gap-4 mt-1.5 sm:mt-2 text-[10px] sm:text-xs text-muted-foreground">
-              <span>Created {format(new Date(task.createdAt), 'MMM d')}</span>
-              
-              {daysLeft && !task.completed && (
-                <span className={cn(
-                  'flex items-center gap-1',
-                  daysLeft.urgent && 'text-destructive font-medium'
-                )}>
-                  <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                  {daysLeft.text}
-                </span>
-              )}
-            </div>
-
-            {/* Comments Section - mobile optimized */}
-            <div className="mt-2 sm:mt-3">
+            {/* Comments Section - more compact */}
+            <div className="mt-1">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 sm:h-9 px-2 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground min-h-[44px] -ml-2"
+                className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground min-h-[24px] -ml-1.5"
                 onClick={() => setShowComments(!showComments)}
                 aria-expanded={showComments}
                 aria-label={`${showComments ? 'Hide' : 'Show'} ${task.comments?.length || 0} comments for task: ${task.name}`}
               >
-                <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
-                {task.comments?.length || 0} comments
+                <MessageSquare className="h-3 w-3 mr-1" />
+                {task.comments?.length || 0}
                 {showComments ? (
-                  <ChevronUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 ml-1" />
+                  <ChevronUp className="h-3 w-3 ml-1" />
                 ) : (
-                  <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 ml-1" />
+                  <ChevronDown className="h-3 w-3 ml-1" />
                 )}
               </Button>
 

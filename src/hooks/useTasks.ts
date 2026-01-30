@@ -285,34 +285,29 @@ export function useTasks() {
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     // Use functional update to ensure latest state
-    let newTasks: Task[] = [];
     setTasks(prev => {
-      newTasks = prev.map(task => 
+      const newTasks = prev.map(task => 
         task.id === id ? { ...task, ...updates } : task
       );
       tasksRef.current = newTasks;
       return newTasks;
     });
     
-    // Need to wait for state to be set before queueing
-    await new Promise(resolve => setTimeout(resolve, 0));
+    // The state update is asynchronous, but tasksRef.current is updated immediately
     await queueSave(tasksRef.current, groupsRef.current, 'update');
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {
-    let newTasks: Task[] = [];
     setTasks(prev => {
-      newTasks = prev.filter(task => task.id !== id);
+      const newTasks = prev.filter(task => task.id !== id);
       tasksRef.current = newTasks;
       return newTasks;
     });
     
-    await new Promise(resolve => setTimeout(resolve, 0));
     await queueSave(tasksRef.current, groupsRef.current, 'delete');
   }, []);
 
   const toggleComplete = useCallback(async (id: string) => {
-    let newTasks: Task[] = [];
     let taskFound = false;
     
     setTasks(prev => {
@@ -320,9 +315,9 @@ export function useTasks() {
       if (!task) return prev;
       taskFound = true;
       
-      newTasks = prev.map(t => 
+      const newTasks = prev.map(t => 
         t.id === id 
-          ? { ...t, completed: !t.completed, archived: false } 
+          ? { ...t, completed: !t.completed } 
           : t
       );
       tasksRef.current = newTasks;
@@ -331,14 +326,12 @@ export function useTasks() {
     
     if (!taskFound) return;
     
-    await new Promise(resolve => setTimeout(resolve, 0));
     await queueSave(tasksRef.current, groupsRef.current, 'toggle');
   }, []);
 
   const restoreTask = useCallback(async (id: string) => {
-    let newTasks: Task[] = [];
     setTasks(prev => {
-      newTasks = prev.map(task => 
+      const newTasks = prev.map(task => 
         task.id === id 
           ? { ...task, completed: false, archived: false } 
           : task
@@ -347,12 +340,10 @@ export function useTasks() {
       return newTasks;
     });
     
-    await new Promise(resolve => setTimeout(resolve, 0));
     await queueSave(tasksRef.current, groupsRef.current, 'restore');
   }, []);
 
   const reorderTasks = useCallback(async (activeId: string, overId: string) => {
-    let newTasks: Task[] = [];
     let validReorder = false;
     
     setTasks(prev => {
@@ -378,14 +369,13 @@ export function useTasks() {
       }));
 
       // Combine: active tasks first (with new order), then archived tasks (unchanged)
-      newTasks = [...updatedActiveTasks, ...archivedTasks];
+      const newTasks = [...updatedActiveTasks, ...archivedTasks];
       tasksRef.current = newTasks;
       return newTasks;
     });
 
     if (!validReorder) return;
     
-    await new Promise(resolve => setTimeout(resolve, 0));
     await queueSave(tasksRef.current, groupsRef.current, 'reorder');
   }, []);
 
@@ -409,9 +399,8 @@ export function useTasks() {
     const newGroups = currentGroups.map(g => g === oldName ? newName : g);
     
     // Update tasks that belong to this group
-    let newTasks: Task[] = [];
     setTasks(prev => {
-      newTasks = prev.map(task =>
+      const newTasks = prev.map(task =>
         task.groupName === oldName ? { ...task, groupName: newName } : task
       );
       tasksRef.current = newTasks;
@@ -421,7 +410,6 @@ export function useTasks() {
     setGroups(newGroups);
     groupsRef.current = newGroups;
     
-    await new Promise(resolve => setTimeout(resolve, 0));
     await queueSave(tasksRef.current, newGroups, 'update');
   }, []);
 
@@ -436,9 +424,8 @@ export function useTasks() {
     // Otherwise, move to the first available group
     const targetGroup = reassignTo || newGroups[0];
     
-    let newTasks: Task[] = [];
     setTasks(prev => {
-      newTasks = prev.map(task =>
+      const newTasks = prev.map(task =>
         task.groupName === name ? { ...task, groupName: targetGroup } : task
       );
       tasksRef.current = newTasks;
@@ -448,7 +435,6 @@ export function useTasks() {
     setGroups(newGroups);
     groupsRef.current = newGroups;
     
-    await new Promise(resolve => setTimeout(resolve, 0));
     await queueSave(tasksRef.current, newGroups, 'delete');
   }, []);
 
@@ -459,9 +445,8 @@ export function useTasks() {
       createdAt: new Date().toISOString(),
     };
 
-    let newTasks: Task[] = [];
     setTasks(prev => {
-      newTasks = prev.map(task =>
+      const newTasks = prev.map(task =>
         task.id === taskId
           ? { ...task, comments: [...task.comments, newComment] }
           : task
@@ -470,15 +455,13 @@ export function useTasks() {
       return newTasks;
     });
     
-    await new Promise(resolve => setTimeout(resolve, 0));
     const success = await queueSave(tasksRef.current, groupsRef.current, 'comment');
     return success ? newComment : null;
   }, []);
 
   const deleteComment = useCallback(async (taskId: string, commentId: string) => {
-    let newTasks: Task[] = [];
     setTasks(prev => {
-      newTasks = prev.map(task =>
+      const newTasks = prev.map(task =>
         task.id === taskId
           ? { ...task, comments: task.comments.filter(c => c.id !== commentId) }
           : task
@@ -487,7 +470,6 @@ export function useTasks() {
       return newTasks;
     });
     
-    await new Promise(resolve => setTimeout(resolve, 0));
     await queueSave(tasksRef.current, groupsRef.current, 'comment');
   }, []);
 

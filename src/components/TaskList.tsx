@@ -122,7 +122,7 @@ export function TaskList({
 
   if (!isDraggable) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {tasks.map((task) => (
           <TaskCard
             key={task.id}
@@ -151,7 +151,7 @@ export function TaskList({
         items={tasks.map(t => t.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="space-y-3">
+        <div className="space-y-2">
           {tasks.map((task) => (
             <TaskCard
               key={task.id}
