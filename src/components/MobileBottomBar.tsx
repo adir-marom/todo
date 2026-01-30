@@ -75,7 +75,7 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
       {/* Bottom bar */}
       <div className={cn(
         "relative bg-background border-t shadow-lg",
-        "pb-[max(1rem,env(safe-area-inset-bottom))]"
+        "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       )}>
         <AnimatePresence mode="wait">
           {isExpanded ? (
@@ -87,15 +87,15 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.2 }}
               onSubmit={handleSubmit}
-              className="p-3"
+              className="p-2 pt-2.5"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <motion.div whileTap={buttonTapScale}>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 flex-shrink-0"
+                    className="h-9 w-9 flex-shrink-0"
                     onClick={handleCollapse}
                     aria-label="Cancel"
                   >
@@ -108,14 +108,14 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
                   placeholder="What needs to be done?"
-                  className="h-11 text-base flex-1"
+                  className="h-10 text-base flex-1"
                   aria-label="Task name"
                 />
                 <motion.div whileTap={buttonTapScale}>
                   <Button
                     type="submit"
                     size="default"
-                    className="h-11 px-4 flex-shrink-0"
+                    className="h-10 px-4 flex-shrink-0"
                     disabled={!value.trim()}
                   >
                     Add
@@ -131,7 +131,7 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
-              className="flex justify-center p-3"
+              className="flex justify-center p-2"
             >
               <motion.div
                 whileTap={buttonTapScale}
@@ -140,7 +140,7 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
                 <Button
                   onClick={handleExpand}
                   size="lg"
-                  className="h-12 px-6 rounded-full shadow-md gap-2"
+                  className="h-11 px-5 rounded-full shadow-md gap-2"
                   aria-label="Add new task"
                 >
                   <Plus className="h-5 w-5" />

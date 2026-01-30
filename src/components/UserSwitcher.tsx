@@ -186,7 +186,7 @@ export function UserSwitcher({
             variant="outline"
             size="sm"
             className={cn(
-              "h-8 sm:h-9 md:h-10 gap-1.5 sm:gap-2 px-2 sm:px-3 font-medium border-2 transition-all",
+              "h-8 sm:h-9 gap-1 sm:gap-2 px-1.5 sm:px-3 font-medium border-2 transition-all",
               currentColor.bg,
               currentColor.text,
               currentColor.border,
@@ -199,7 +199,7 @@ export function UserSwitcher({
             ) : (
               <User className="h-4 w-4" />
             )}
-            <span className="max-w-[80px] truncate">
+            <span className="max-w-[60px] sm:max-w-[80px] truncate text-xs sm:text-sm">
               {currentUser?.name || 'Select'}
             </span>
             <ChevronDown className="h-3 w-3 opacity-70" />

@@ -235,22 +235,22 @@ function App() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0"
+          className="min-h-screen bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"
         >
-          <div className="container mx-auto py-3 sm:py-6 md:py-8 px-2 sm:px-4 lg:px-6 max-w-4xl">
-            <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-primary" />
-                <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Todo List</h1>
+          <div className="container mx-auto py-2 sm:py-6 md:py-8 px-3 sm:px-4 lg:px-6 max-w-4xl">
+            <div className="flex items-center justify-between mb-3 sm:mb-6 md:mb-8 gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-primary flex-shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <h1 className="text-lg sm:text-2xl md:text-3xl font-bold truncate">Todo List</h1>
                   {currentUser && (
-                    <span className={cn("text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-full", getUserColor(currentUser.name).bg, getUserColor(currentUser.name).text)}>
+                    <span className={cn("text-[10px] sm:text-sm font-semibold px-1.5 sm:px-2 py-0.5 rounded-full w-fit", getUserColor(currentUser.name).bg, getUserColor(currentUser.name).text)}>
                       {currentUser.name}'s Tasks
                     </span>
                   )}
                 </div>
               </div>
-            <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-wrap justify-end">
+            <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-shrink-0">
                 <SyncStatusCompact state={syncState} />
                 <UserSwitcher users={users} currentUser={currentUser} onSwitchUser={switchUser} onUpdateUser={updateUser} />
                 <ExportImportDialog tasks={tasks} groups={groups} currentUser={currentUser} onImport={importTasks} />
@@ -263,13 +263,13 @@ function App() {
             </div>
 
             {(syncState === 'error' || syncState === 'offline') && (
-              <div className="mb-3 sm:mb-4">
+              <div className="mb-2 sm:mb-4">
                 <SyncStatus state={syncState} lastSyncedAt={lastSyncedAt} errorMessage={error} onRetry={retrySave} onRefresh={refetch} className="w-full justify-center py-2" />
               </div>
             )}
 
             {error && syncState !== 'error' && (
-              <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center justify-between text-sm sm:text-base">
+              <div className="mb-2 sm:mb-4 p-2 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive flex items-center justify-between text-xs sm:text-base">
                 <span className="flex-1 mr-2">{error}</span>
                 <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive flex-shrink-0" onClick={clearError} aria-label="Dismiss error">
                   <X className="h-4 w-4" />
@@ -278,17 +278,17 @@ function App() {
             )}
 
             {activeTasks.length > 0 && (
-              <div className="mb-4 sm:mb-6">
+              <div className="mb-3 sm:mb-6">
                 <ProgressBar completed={activeTasks.filter(t => t.completed).length} total={activeTasks.length} />
               </div>
             )}
 
-            <div className="mb-3 sm:mb-4 hidden md:block">
+            <div className="mb-2 sm:mb-4 hidden md:block">
               <QuickAdd onAdd={handleQuickAdd} />
             </div>
 
-            <div className="mb-4 sm:mb-6 md:mb-8">
-              <Button variant="ghost" onClick={() => setShowFullForm(!showFullForm)} className="w-full justify-between mb-2 text-muted-foreground hover:text-foreground text-sm sm:text-base h-9 sm:h-10" aria-expanded={showFullForm} aria-controls="full-task-form">
+            <div className="mb-3 sm:mb-6 md:mb-8">
+              <Button variant="ghost" onClick={() => setShowFullForm(!showFullForm)} className="w-full justify-between mb-1.5 sm:mb-2 text-muted-foreground hover:text-foreground text-xs sm:text-base h-8 sm:h-10" aria-expanded={showFullForm} aria-controls="full-task-form">
                 <span className="flex items-center gap-2">{showFullForm ? 'Hide' : 'Show'} full task form</span>
                 <motion.span animate={{ rotate: showFullForm ? 180 : 0 }} transition={{ duration: 0.2 }}><ChevronDown className="h-4 w-4" /></motion.span>
               </Button>
@@ -301,24 +301,24 @@ function App() {
               </AnimatePresence>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4">
-              <TabsList className="grid w-full grid-cols-2 h-10 sm:h-11">
-                <TabsTrigger value="active" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-2 sm:space-y-4">
+              <TabsList className="grid w-full grid-cols-2 h-9 sm:h-11">
+                <TabsTrigger value="active" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                   <ListTodo className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span className="hidden xs:inline">Active</span> ({activeTasks.length})
+                  Active ({activeTasks.length})
                 </TabsTrigger>
-                <TabsTrigger value="archived" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                <TabsTrigger value="archived" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                   <Archive className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span className="hidden xs:inline">Archived</span> ({archivedTasks.length})
+                  Archived ({archivedTasks.length})
                 </TabsTrigger>
               </TabsList>
 
               <AnimatePresence mode="wait">
-                <TabsContent value="active" className="space-y-3 sm:space-y-4" asChild>
+                <TabsContent value="active" className="space-y-2 sm:space-y-4 mt-0" asChild>
                   <motion.div key="active" variants={viewTransitionVariants} initial="initial" animate="animate" exit="exit">
                     <Card>
-                      <CardHeader className="py-3 px-3 sm:py-4 sm:px-6"><CardTitle className="text-base sm:text-lg">Filter & Sort</CardTitle></CardHeader>
-                      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+                      <CardHeader className="py-2 px-3 sm:py-4 sm:px-6"><CardTitle className="text-sm sm:text-lg">Filter & Sort</CardTitle></CardHeader>
+                      <CardContent className="px-3 pb-2 sm:px-6 sm:pb-6 pt-0">
                         <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} groupFilter={groupFilter} onGroupFilterChange={setGroupFilter} priorityFilter={priorityFilter} onPriorityFilterChange={setPriorityFilter} colorFilter={colorFilter} onColorFilterChange={setColorFilter} sortBy={sortBy} onSortChange={setSortBy} sortAscending={sortAscending} onSortDirectionChange={setSortAscending} groups={groups} />
                       </CardContent>
                     </Card>
@@ -326,12 +326,12 @@ function App() {
                   </motion.div>
                 </TabsContent>
 
-                <TabsContent value="archived" className="space-y-3 sm:space-y-4" asChild>
+                <TabsContent value="archived" className="space-y-2 sm:space-y-4 mt-0" asChild>
                   <motion.div key="archived" variants={viewTransitionVariants} initial="initial" animate="animate" exit="exit">
                     <Card>
-                      <CardHeader className="py-3 px-3 sm:py-4 sm:px-6"><CardTitle className="text-base sm:text-lg">Archived Tasks</CardTitle></CardHeader>
-                      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
-                        <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">Completed tasks are moved here. You can restore them to active tasks.</p>
+                      <CardHeader className="py-2 px-3 sm:py-4 sm:px-6"><CardTitle className="text-sm sm:text-lg">Archived Tasks</CardTitle></CardHeader>
+                      <CardContent className="px-3 pb-2 sm:px-6 sm:pb-6 pt-0">
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-4">Completed tasks are moved here. You can restore them to active tasks.</p>
                         <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} groupFilter={groupFilter} onGroupFilterChange={setGroupFilter} priorityFilter={priorityFilter} onPriorityFilterChange={setPriorityFilter} colorFilter={colorFilter} onColorFilterChange={setColorFilter} sortBy={sortBy} onSortChange={setSortBy} sortAscending={sortAscending} onSortDirectionChange={setSortAscending} groups={groups} />
                       </CardContent>
                     </Card>

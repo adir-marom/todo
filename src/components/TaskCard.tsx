@@ -131,8 +131,8 @@ export function TaskCard({
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
         style={{ backgroundColor: colorConfig?.hex || '#6b7280' }}
       />
-      <CardContent className="p-2 pl-3 sm:p-3 sm:pl-4">
-        <div className="flex items-start gap-1.5 sm:gap-2">
+      <CardContent className="p-1.5 pl-2.5 sm:p-3 sm:pl-4">
+        <div className="flex items-start gap-1 sm:gap-2">
           {isDraggable && !task.archived && (
             <button
               className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-manipulation min-h-[32px] min-w-[32px] flex items-center justify-center -m-1"
@@ -160,7 +160,7 @@ export function TaskCard({
             <div className="flex items-start justify-between gap-1 sm:gap-2">
               <h3 
                 className={cn(
-                  'font-medium line-clamp-1 text-sm sm:text-base pr-1',
+                  'font-medium line-clamp-2 sm:line-clamp-1 text-sm sm:text-base pr-1 break-words',
                   task.completed && 'line-through text-muted-foreground'
                 )}
                 title={task.name}
@@ -206,7 +206,7 @@ export function TaskCard({
             </div>
 
             {/* Badges and Meta - more compact row */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+            <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 mt-0.5 sm:mt-1">
               <div className="flex items-center gap-1.5">
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 leading-none h-4">
                   {task.groupName}

@@ -99,9 +99,9 @@ export function GroupManagementDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Settings className="h-4 w-4 mr-2" />
-          Manage Groups
+        <Button variant="outline" size="sm" className="h-8 sm:h-9 gap-1.5 px-2 sm:px-3">
+          <Settings className="h-4 w-4" />
+          <span className="hidden sm:inline">Manage Groups</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-[400px] max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">

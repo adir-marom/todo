@@ -52,7 +52,7 @@ export function FilterBar({
   };
 
   return (
-    <div className="space-y-2 sm:space-y-3">
+    <div className="space-y-1.5 sm:space-y-3">
       {/* Search Input - larger touch target on mobile */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -60,14 +60,14 @@ export function FilterBar({
           placeholder="Search tasks..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10 h-10 sm:h-9 text-sm"
+          className="pl-10 h-9 sm:h-9 text-sm"
           aria-label="Search tasks"
         />
         {searchQuery && (
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 min-h-[44px] min-w-[44px] -mr-1"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 sm:h-8 sm:w-8"
             onClick={() => onSearchChange('')}
             aria-label="Clear search"
           >
@@ -76,14 +76,14 @@ export function FilterBar({
         )}
       </div>
 
-      {/* Filters - Horizontal scroll on mobile, grid on tablet+ */}
-      <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 sm:overflow-visible">
-        <div className="flex gap-1.5 sm:gap-2 sm:flex-wrap min-w-max sm:min-w-0">
+      {/* Filters - Horizontal scroll on mobile, wrap on tablet+ */}
+      <div className="overflow-x-auto pb-1 sm:pb-0 sm:overflow-visible scrollbar-none">
+        <div className="flex gap-1 sm:gap-2 sm:flex-wrap min-w-max sm:min-w-0">
           <Select 
             value={groupFilter || 'all'} 
             onValueChange={(v) => onGroupFilterChange(v === 'all' ? null : v)}
           >
-            <SelectTrigger className="w-[100px] sm:w-[120px] md:w-[130px] h-9 text-xs sm:text-sm" aria-label="Filter by group">
+            <SelectTrigger className="w-[85px] sm:w-[120px] md:w-[130px] h-8 sm:h-9 text-[11px] sm:text-sm" aria-label="Filter by group">
               <SelectValue placeholder="Group" />
             </SelectTrigger>
             <SelectContent>
@@ -100,7 +100,7 @@ export function FilterBar({
             value={priorityFilter || 'all'} 
             onValueChange={(v) => onPriorityFilterChange(v === 'all' ? null : v as Priority)}
           >
-            <SelectTrigger className="w-[100px] sm:w-[120px] md:w-[140px] h-9 text-xs sm:text-sm" aria-label="Filter by priority">
+            <SelectTrigger className="w-[85px] sm:w-[120px] md:w-[140px] h-8 sm:h-9 text-[11px] sm:text-sm" aria-label="Filter by priority">
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
             <SelectContent>
@@ -133,7 +133,7 @@ export function FilterBar({
             value={colorFilter || 'all'} 
             onValueChange={(v) => onColorFilterChange(v === 'all' ? null : v as TaskColor)}
           >
-            <SelectTrigger className="w-[90px] sm:w-[100px] md:w-[120px] h-9 text-xs sm:text-sm" aria-label="Filter by color">
+            <SelectTrigger className="w-[70px] sm:w-[100px] md:w-[120px] h-8 sm:h-9 text-[11px] sm:text-sm" aria-label="Filter by color">
               <SelectValue placeholder="Color" />
             </SelectTrigger>
             <SelectContent>
@@ -154,7 +154,7 @@ export function FilterBar({
           </Select>
 
           <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
-            <SelectTrigger className="w-[100px] sm:w-[120px] md:w-[140px] h-9 text-xs sm:text-sm" aria-label="Sort by">
+            <SelectTrigger className="w-[80px] sm:w-[120px] md:w-[140px] h-8 sm:h-9 text-[11px] sm:text-sm" aria-label="Sort by">
               <SelectValue placeholder="Sort" />
             </SelectTrigger>
             <SelectContent>
@@ -168,9 +168,9 @@ export function FilterBar({
 
           <Button
             variant="outline"
-            size="default"
+            size="sm"
             onClick={() => onSortDirectionChange(!sortAscending)}
-            className="px-2.5 sm:px-3 h-9 text-xs sm:text-sm flex-shrink-0"
+            className="px-2 sm:px-3 h-8 sm:h-9 text-[11px] sm:text-sm flex-shrink-0"
             aria-label={`Sort direction: ${sortAscending ? 'ascending' : 'descending'}. Click to toggle.`}
           >
             {sortAscending ? '↑' : '↓'}
@@ -180,12 +180,12 @@ export function FilterBar({
           {hasActiveFilters && (
             <Button
               variant="secondary"
-              size="default"
+              size="sm"
               onClick={clearFilters}
-              className="px-2.5 sm:px-3 h-9 text-xs sm:text-sm flex-shrink-0"
+              className="px-2 sm:px-3 h-8 sm:h-9 text-[11px] sm:text-sm flex-shrink-0"
               aria-label={`Clear ${activeFilterCount} active filter${activeFilterCount > 1 ? 's' : ''}`}
             >
-              <X className="h-3.5 w-3.5 sm:mr-1" />
+              <X className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
               <span className="hidden sm:inline">Clear</span>
               <span className="ml-0.5 sm:ml-0">({activeFilterCount})</span>
             </Button>

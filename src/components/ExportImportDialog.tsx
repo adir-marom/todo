@@ -179,7 +179,7 @@ export function ExportImportDialog({
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8 sm:h-9 gap-1.5">
+          <Button variant="outline" size="sm" className="h-8 sm:h-9 gap-1.5 px-2 sm:px-3">
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
           </Button>

@@ -12,17 +12,17 @@ export function ProgressBar({ completed, total, className }: ProgressBarProps) {
   const remaining = total - completed;
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-1.5 sm:space-y-2", className)}>
       {/* Stats Row */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 text-muted-foreground">
-            <Circle className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{remaining} remaining</span>
+      <div className="flex items-center justify-between text-xs sm:text-sm">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <span className="flex items-center gap-1 sm:gap-1.5 text-muted-foreground">
+            <Circle className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
+            <span>{remaining} left</span>
           </span>
-          <span className="flex items-center gap-1.5 text-[#2D5A4A] dark:text-[#A8E6CF]">
-            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{completed} completed</span>
+          <span className="flex items-center gap-1 sm:gap-1.5 text-[#2D5A4A] dark:text-[#A8E6CF]">
+            <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
+            <span>{completed} done</span>
           </span>
         </div>
         <span className="font-medium tabular-nums" aria-label={`${percentage}% complete`}>
@@ -32,7 +32,7 @@ export function ProgressBar({ completed, total, className }: ProgressBarProps) {
 
       {/* Progress Bar */}
       <div 
-        className="h-2 w-full bg-secondary rounded-full overflow-hidden"
+        className="h-1.5 sm:h-2 w-full bg-secondary rounded-full overflow-hidden"
         role="progressbar"
         aria-valuenow={percentage}
         aria-valuemin={0}
@@ -54,8 +54,8 @@ export function ProgressBar({ completed, total, className }: ProgressBarProps) {
 
       {/* Completion Message */}
       {percentage === 100 && total > 0 && (
-        <p className="text-sm text-[#2D5A4A] dark:text-[#A8E6CF] font-medium">
-          All tasks completed! Great work!
+        <p className="text-xs sm:text-sm text-[#2D5A4A] dark:text-[#A8E6CF] font-medium">
+          All tasks completed!
         </p>
       )}
     </div>

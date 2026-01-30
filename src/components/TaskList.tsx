@@ -114,18 +114,18 @@ export function TaskList({
           variants={emptyStateVariants}
           initial="initial"
           animate="animate"
-          className="flex flex-col items-center justify-center py-16 px-4"
+          className="flex flex-col items-center justify-center py-8 sm:py-16 px-3 sm:px-4"
         >
-          <div className="rounded-full bg-muted p-4 mb-4">
-            <Search className="h-8 w-8 text-muted-foreground" />
+          <div className="rounded-full bg-muted p-3 sm:p-4 mb-3 sm:mb-4">
+            <Search className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium mb-1">No matching tasks</h3>
-          <p className="text-sm text-muted-foreground text-center mb-6 max-w-sm">
-            We couldn't find any tasks matching your current filters. Try adjusting your search criteria.
+          <h3 className="text-base sm:text-lg font-medium mb-1">No matching tasks</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground text-center mb-4 sm:mb-6 max-w-sm">
+            No tasks matching your filters. Try adjusting your search.
           </p>
           {onClearFilters && (
             <Button variant="default" size="sm" onClick={onClearFilters}>
-              Clear All Filters
+              Clear Filters
             </Button>
           )}
         </motion.div>
@@ -139,14 +139,14 @@ export function TaskList({
           variants={emptyStateVariants}
           initial="initial"
           animate="animate"
-          className="flex flex-col items-center justify-center py-16 px-4"
+          className="flex flex-col items-center justify-center py-8 sm:py-16 px-3 sm:px-4"
         >
-          <div className="rounded-full bg-muted p-4 mb-4">
-            <Archive className="h-8 w-8 text-muted-foreground" />
+          <div className="rounded-full bg-muted p-3 sm:p-4 mb-3 sm:mb-4">
+            <Archive className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium mb-1">No archived tasks</h3>
-          <p className="text-sm text-muted-foreground text-center max-w-sm">
-            When you complete tasks, they'll be moved here for your records. Keep up the great work!
+          <h3 className="text-base sm:text-lg font-medium mb-1">No archived tasks</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground text-center max-w-sm">
+            Completed tasks will appear here.
           </p>
         </motion.div>
       );
@@ -158,18 +158,18 @@ export function TaskList({
         variants={emptyStateVariants}
         initial="initial"
         animate="animate"
-        className="flex flex-col items-center justify-center py-12 sm:py-16 px-4"
+        className="flex flex-col items-center justify-center py-8 sm:py-16 px-3 sm:px-4"
       >
-        <div className="rounded-full bg-primary/10 p-4 mb-4">
-          <Sparkles className="h-8 w-8 text-primary" />
+        <div className="rounded-full bg-primary/10 p-3 sm:p-4 mb-3 sm:mb-4">
+          <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
         </div>
-        <h3 className="text-lg font-medium mb-1">
+        <h3 className="text-base sm:text-lg font-medium mb-1">
           {userName ? `Welcome, ${userName}!` : 'Ready to get started?'}
         </h3>
-        <p className="text-sm text-muted-foreground text-center mb-4 max-w-sm">
+        <p className="text-xs sm:text-sm text-muted-foreground text-center mb-3 sm:mb-4 max-w-sm">
           {userName 
-            ? "Your task list is empty. Create your first task to get organized!"
-            : "Create your first task using the quick add above or expand the full form for more options."
+            ? "Your task list is empty. Create your first task!"
+            : "Create your first task using quick add or the full form."
           }
         </p>
         
@@ -177,14 +177,15 @@ export function TaskList({
         {onShowFullForm && (
           <Button
             onClick={onShowFullForm}
-            className="mb-4"
+            size="sm"
+            className="mb-3 sm:mb-4"
           >
             Create First Task
           </Button>
         )}
         
-        {/* Keyboard shortcuts help */}
-        <div className="mt-2 p-3 bg-muted/50 rounded-lg">
+        {/* Keyboard shortcuts help - hidden on very small screens */}
+        <div className="mt-2 p-2 sm:p-3 bg-muted/50 rounded-lg hidden sm:block">
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
             <Keyboard className="h-3.5 w-3.5" />
             <span className="font-medium">Keyboard shortcuts</span>
@@ -210,9 +211,9 @@ export function TaskList({
         </div>
         
         {/* Import hint */}
-        <p className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
+        <p className="mt-3 sm:mt-4 text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1.5">
           <Download className="h-3 w-3" />
-          <span>Have a backup? Use the Export button to import tasks.</span>
+          <span>Have a backup? Use Export to import tasks.</span>
         </p>
       </motion.div>
     );
@@ -220,7 +221,7 @@ export function TaskList({
 
   if (!isDraggable) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-1.5 sm:space-y-2">
         <AnimatePresence mode="popLayout">
           {tasks.map((task) => (
             <motion.div
@@ -265,7 +266,7 @@ export function TaskList({
         items={tasks.map(t => t.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="space-y-2" role="list" aria-label="Task list">
+        <div className="space-y-1.5 sm:space-y-2" role="list" aria-label="Task list">
           <AnimatePresence mode="popLayout">
             {tasks.map((task) => (
               <motion.div
