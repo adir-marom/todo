@@ -29,9 +29,10 @@ RUN npm install --omit=dev
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Copy server files
+# Copy server files and scripts
 COPY server.js ./
 COPY db.js ./
+COPY scripts ./scripts
 
 # Expose port
 EXPOSE 3001
