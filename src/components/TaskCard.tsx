@@ -162,7 +162,7 @@ export function TaskCard({
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="absolute inset-0 rounded-lg z-10 pointer-events-none"
             style={{
-              background: 'linear-gradient(90deg, transparent, #22c55e, #4ade80, transparent)',
+              background: 'linear-gradient(90deg, transparent, #7B68EE, #9B8FFF, transparent)',
               transformOrigin: 'left center',
             }}
           />

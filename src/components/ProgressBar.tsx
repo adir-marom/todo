@@ -20,7 +20,7 @@ export function ProgressBar({ completed, total, className }: ProgressBarProps) {
             <Circle className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
             <span>{remaining} left</span>
           </span>
-          <span className="flex items-center gap-1 sm:gap-1.5 text-[#2D5A4A] dark:text-[#A8E6CF]">
+          <span className="flex items-center gap-1 sm:gap-1.5 text-primary">
             <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
             <span>{completed} done</span>
           </span>
@@ -48,7 +48,7 @@ export function ProgressBar({ completed, total, className }: ProgressBarProps) {
           className={cn(
             "h-full rounded-full transition-all duration-500 ease-out",
             percentage === 100 
-              ? "bg-[#A8E6CF]" 
+              ? "bg-primary" 
               : percentage >= 50 
                 ? "bg-primary" 
                 : "bg-primary/70"
@@ -59,7 +59,7 @@ export function ProgressBar({ completed, total, className }: ProgressBarProps) {
 
       {/* Completion Message */}
       {percentage === 100 && total > 0 && (
-        <p className="text-xs sm:text-sm text-[#2D5A4A] dark:text-[#A8E6CF] font-medium">
+        <p className="text-xs sm:text-sm text-primary font-medium">
           All tasks completed!
         </p>
       )}

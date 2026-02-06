@@ -122,22 +122,22 @@ export function FilterBar({
             <SelectItem value="all">All Priorities</SelectItem>
             <SelectItem value="high">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#F8A5A5]" />
-                <ArrowUp className="h-3 w-3 text-[#7A2828]" />
+                <div className="w-3 h-3 rounded-full bg-[#FFC800]" />
+                <ArrowUp className="h-3 w-3 text-[#7A5F00]" />
                 High
               </div>
             </SelectItem>
             <SelectItem value="medium">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#FEF3A5]" />
-                <Minus className="h-3 w-3 text-[#6B5C00]" />
+                <div className="w-3 h-3 rounded-full bg-[#49CCF9]" />
+                <Minus className="h-3 w-3 text-[#0D7EAA]" />
                 Medium
               </div>
             </SelectItem>
             <SelectItem value="low">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#A8E6CF]" />
-                <ArrowDown className="h-3 w-3 text-[#2D5A4A]" />
+                <div className="w-3 h-3 rounded-full bg-[#7ECBA4]" />
+                <ArrowDown className="h-3 w-3 text-[#1E6B47]" />
                 Low
               </div>
             </SelectItem>

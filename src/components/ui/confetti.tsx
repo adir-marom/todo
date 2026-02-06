@@ -14,12 +14,10 @@ interface Particle {
 }
 
 const COLORS = [
-  '#22c55e', '#16a34a', '#4ade80', // greens (success!)
-  '#facc15', '#fbbf24', '#f59e0b', // golds
-  '#3b82f6', '#60a5fa',            // blues
-  '#a855f7', '#c084fc',            // purples
-  '#f43f5e', '#fb7185',            // pinks
-  '#06b6d4', '#22d3ee',            // cyans
+  '#7B68EE', '#6C5CE7', '#9B8FFF', // ClickUp purple (primary)
+  '#FD71AF', '#E83D8C', '#FF9DC8', // ClickUp pink (accent)
+  '#49CCF9', '#12AEEA', '#7FDDFF', // ClickUp blue (info)
+  '#FFC800', '#FFD84D', '#FFE680', // ClickUp yellow (highlight)
 ];
 
 const PARTICLE_COUNT = 45;

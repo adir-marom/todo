@@ -68,11 +68,12 @@ export const TASK_COLORS: { value: TaskColor; label: string; hex: string }[] = [
   { value: 'gray', label: 'Silver', hex: '#C5C6C7' },
 ];
 
-// Pastel priority colors with good contrast for text
-export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; textColor: string; icon: 'high' | 'medium' | 'low' }> = {
-  low: { label: 'Low', color: 'bg-[#A8E6CF] dark:bg-[#6BBF9E]', textColor: 'text-[#2D5A4A] dark:text-[#1A3D30]', icon: 'low' },
-  medium: { label: 'Medium', color: 'bg-[#FEF3A5] dark:bg-[#E6D98F]', textColor: 'text-[#6B5C00] dark:text-[#4A4000]', icon: 'medium' },
-  high: { label: 'High', color: 'bg-[#F8A5A5] dark:bg-[#E08080]', textColor: 'text-[#7A2828] dark:text-[#5A1A1A]', icon: 'high' },
+// ClickUp-aligned priority colors
+// High = Yellow (warning), Medium = Blue (info), Low = Green (calm)
+export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; textColor: string; icon: 'high' | 'medium' | 'low'; dotColor: string; arrowColor: string }> = {
+  low: { label: 'Low', color: 'bg-[#D6F5E8] dark:bg-[#0D2E1F]', textColor: 'text-[#1E6B47] dark:text-[#7ECBA4]', icon: 'low', dotColor: 'bg-[#7ECBA4]', arrowColor: 'text-[#1E6B47]' },
+  medium: { label: 'Medium', color: 'bg-[#D9F2FD] dark:bg-[#0A2A3C]', textColor: 'text-[#0D7EAA] dark:text-[#49CCF9]', icon: 'medium', dotColor: 'bg-[#49CCF9]', arrowColor: 'text-[#0D7EAA]' },
+  high: { label: 'High', color: 'bg-[#FFF3CC] dark:bg-[#332800]', textColor: 'text-[#7A5F00] dark:text-[#FFC800]', icon: 'high', dotColor: 'bg-[#FFC800]', arrowColor: 'text-[#7A5F00]' },
 };
 
 export type SortOption = 'dueDate' | 'priority' | 'createdAt' | 'name' | 'order';
