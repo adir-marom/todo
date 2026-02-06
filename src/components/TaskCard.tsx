@@ -56,15 +56,20 @@ export function TaskCard({
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showFlash, setShowFlash] = useState(false);
   const prevCompletedRef = useRef(task.completed);
 
-  // Trigger confetti when task transitions from incomplete -> complete
+  // Trigger celebration when task transitions from incomplete -> complete
   useEffect(() => {
     if (task.completed && !prevCompletedRef.current) {
       setShowConfetti(true);
-      // Reset trigger so it can fire again if toggled
-      const timer = setTimeout(() => setShowConfetti(false), 900);
-      return () => clearTimeout(timer);
+      setShowFlash(true);
+      const confettiTimer = setTimeout(() => setShowConfetti(false), 1700);
+      const flashTimer = setTimeout(() => setShowFlash(false), 800);
+      return () => {
+        clearTimeout(confettiTimer);
+        clearTimeout(flashTimer);
+      };
     }
     prevCompletedRef.current = task.completed;
   }, [task.completed]);
@@ -136,11 +141,31 @@ export function TaskCard({
         ref={setNodeRef}
         style={style}
         className={cn(
-          'relative transition-shadow',
+          'relative transition-shadow overflow-visible',
           isDragging && 'opacity-50 shadow-lg',
           task.archived && 'opacity-70'
         )}
       >
+      {/* Confetti burst - card level for full width effect */}
+      <Confetti trigger={showConfetti} />
+
+      {/* Green success flash overlay */}
+      <AnimatePresence>
+        {showFlash && (
+          <motion.div
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: [0, 0.25, 0.15, 0], scaleX: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-0 rounded-lg z-10 pointer-events-none"
+            style={{
+              background: 'linear-gradient(90deg, transparent, #22c55e, #4ade80, transparent)',
+              transformOrigin: 'left center',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       <div 
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
         style={{ backgroundColor: colorConfig?.hex || '#6b7280' }}
@@ -160,13 +185,12 @@ export function TaskCard({
 
           {/* Only show checkbox for active tasks - archived tasks use the restore button */}
           {!task.archived && (
-            <div className="relative min-h-[32px] min-w-[32px] flex items-center justify-center -m-1">
+            <div className="min-h-[32px] min-w-[32px] flex items-center justify-center -m-1">
               <Checkbox
                 checked={task.completed}
                 onCheckedChange={() => onToggleComplete(task.id)}
                 className="h-4 w-4"
               />
-              <Confetti trigger={showConfetti} />
             </div>
           )}
 

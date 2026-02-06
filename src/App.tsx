@@ -18,6 +18,8 @@ import { UserSelection } from '@/components/UserSelection';
 import { SyncStatus, SyncStatusCompact } from '@/components/SyncStatus';
 import { ExportImportDialog } from '@/components/ExportImportDialog';
 import { UndoToast } from '@/components/UndoToast';
+import { useDailyInsight } from '@/hooks/useDailyInsight';
+import { DailyInsightDialog } from '@/components/DailyInsightDialog';
 import { useTasks, sortTasks, filterTasks, loadUIState, saveUIState } from '@/hooks/useTasks';
 import { Priority, SortOption, TaskColor } from '@/types/task';
 import { cn } from '@/lib/utils';
@@ -68,6 +70,8 @@ function App() {
   const [sortAscending, setSortAscending] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('active');
   const [isUserSelected, setIsUserSelected] = useState(false);
+  
+  const { isOpen: isInsightOpen, setIsOpen: setIsInsightOpen, insight } = useDailyInsight(tasks, loading, currentUser?.name);
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -347,6 +351,7 @@ function App() {
             </Tabs>
           </div>
           <MobileBottomBar onAdd={handleQuickAdd} />
+          <DailyInsightDialog isOpen={isInsightOpen} onOpenChange={setIsInsightOpen} insight={insight} />
           {canUndo && undoLabel && <UndoToast label={undoLabel} onUndo={undo} onDismiss={dismissUndo} />}
         </motion.div>
       )}

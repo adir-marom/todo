@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Particle {
@@ -8,57 +8,90 @@ interface Particle {
   rotation: number;
   scale: number;
   color: string;
-  shape: 'circle' | 'square' | 'star';
+  shape: 'circle' | 'rect' | 'star' | 'ring';
   delay: number;
+  duration: number;
 }
 
 const COLORS = [
-  '#FF6B6B', '#FFE66D', '#4ECDC4', '#45B7D1',
-  '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8',
-  '#F7DC6F', '#BB8FCE', '#85C1E9', '#F1948A',
+  '#22c55e', '#16a34a', '#4ade80', // greens (success!)
+  '#facc15', '#fbbf24', '#f59e0b', // golds
+  '#3b82f6', '#60a5fa',            // blues
+  '#a855f7', '#c084fc',            // purples
+  '#f43f5e', '#fb7185',            // pinks
+  '#06b6d4', '#22d3ee',            // cyans
 ];
 
-const PARTICLE_COUNT = 24;
+const PARTICLE_COUNT = 45;
 
 function generateParticles(): Particle[] {
   return Array.from({ length: PARTICLE_COUNT }, (_, i) => {
-    const angle = (i / PARTICLE_COUNT) * 360;
-    const velocity = 40 + Math.random() * 60;
+    // Spread particles across the full width of the card
+    // Random angle biased upward for a "fountain" feel
+    const angle = -30 - Math.random() * 120; // -30 to -150 degrees (upward arc)
+    const velocity = 80 + Math.random() * 180;
     const rad = (angle * Math.PI) / 180;
+
+    // Horizontal spread across the card width
+    const xOffset = (Math.random() - 0.5) * 200;
 
     return {
       id: i,
-      x: Math.cos(rad) * velocity,
-      y: Math.sin(rad) * velocity - 20, // bias upward
-      rotation: Math.random() * 720 - 360,
-      scale: 0.4 + Math.random() * 0.8,
+      x: Math.cos(rad) * velocity + xOffset,
+      y: Math.sin(rad) * velocity,
+      rotation: Math.random() * 1080 - 540,
+      scale: 0.6 + Math.random() * 1.0,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      shape: (['circle', 'square', 'star'] as const)[Math.floor(Math.random() * 3)],
-      delay: Math.random() * 0.1,
+      shape: (['circle', 'rect', 'star', 'ring'] as const)[Math.floor(Math.random() * 4)],
+      delay: Math.random() * 0.15,
+      duration: 0.8 + Math.random() * 0.6,
     };
   });
 }
 
-function ParticleShape({ shape, color }: { shape: Particle['shape']; color: string }) {
+function ParticleShape({ shape, color, scale }: { shape: Particle['shape']; color: string; scale: number }) {
+  const size = Math.round(6 + scale * 6); // 6-12px based on scale
+
   if (shape === 'circle') {
     return (
       <div
-        className="w-2 h-2 rounded-full"
-        style={{ backgroundColor: color }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          backgroundColor: color,
+        }}
       />
     );
   }
-  if (shape === 'square') {
+  if (shape === 'rect') {
+    // Elongated confetti strip
     return (
       <div
-        className="w-2 h-2 rounded-sm"
-        style={{ backgroundColor: color }}
+        style={{
+          width: size * 1.8,
+          height: size * 0.5,
+          borderRadius: 2,
+          backgroundColor: color,
+        }}
       />
     );
   }
-  // star shape using CSS
+  if (shape === 'ring') {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          border: `2px solid ${color}`,
+        }}
+      />
+    );
+  }
+  // star
   return (
-    <svg width="8" height="8" viewBox="0 0 10 10">
+    <svg width={size + 2} height={size + 2} viewBox="0 0 10 10">
       <polygon
         points="5,0 6.2,3.5 10,3.5 7,5.8 8.2,9.5 5,7.2 1.8,9.5 3,5.8 0,3.5 3.8,3.5"
         fill={color}
@@ -72,32 +105,38 @@ interface ConfettiProps {
 }
 
 export function Confetti({ trigger }: ConfettiProps) {
-  const [particles, setParticles] = useState<Particle[]>([]);
-  const [show, setShow] = useState(false);
+  const [bursts, setBursts] = useState<{ id: number; particles: Particle[] }[]>([]);
+
+  const fireBurst = useCallback(() => {
+    const burstId = Date.now();
+    setBursts(prev => [...prev, { id: burstId, particles: generateParticles() }]);
+
+    // Clean up this burst after the animation completes
+    setTimeout(() => {
+      setBursts(prev => prev.filter(b => b.id !== burstId));
+    }, 1600);
+  }, []);
 
   useEffect(() => {
     if (trigger) {
-      setParticles(generateParticles());
-      setShow(true);
-
-      const timer = setTimeout(() => {
-        setShow(false);
-      }, 800);
-
-      return () => clearTimeout(timer);
+      fireBurst();
     }
-  }, [trigger]);
+  }, [trigger, fireBurst]);
 
   return (
     <AnimatePresence>
-      {show && (
-        <div className="absolute inset-0 pointer-events-none overflow-visible z-50 flex items-center justify-center">
-          {particles.map((p) => (
+      {bursts.map((burst) => (
+        <div
+          key={burst.id}
+          className="absolute inset-0 pointer-events-none z-50"
+          style={{ overflow: 'visible' }}
+        >
+          {burst.particles.map((p) => (
             <motion.div
               key={p.id}
               initial={{
-                x: 0,
-                y: 0,
+                x: '50%',
+                y: '50%',
                 scale: 0,
                 rotate: 0,
                 opacity: 1,
@@ -105,22 +144,31 @@ export function Confetti({ trigger }: ConfettiProps) {
               animate={{
                 x: p.x,
                 y: p.y,
-                scale: p.scale,
+                scale: [0, p.scale * 1.2, p.scale, 0],
                 rotate: p.rotation,
-                opacity: 0,
+                opacity: [1, 1, 1, 0],
               }}
               transition={{
-                duration: 0.6 + Math.random() * 0.3,
+                duration: p.duration,
                 delay: p.delay,
                 ease: [0.22, 1, 0.36, 1],
+                scale: {
+                  duration: p.duration,
+                  times: [0, 0.2, 0.6, 1],
+                },
+                opacity: {
+                  duration: p.duration,
+                  times: [0, 0.3, 0.7, 1],
+                },
               }}
-              className="absolute"
+              className="absolute left-0 top-0"
+              style={{ originX: '50%', originY: '50%' }}
             >
-              <ParticleShape shape={p.shape} color={p.color} />
+              <ParticleShape shape={p.shape} color={p.color} scale={p.scale} />
             </motion.div>
           ))}
         </div>
-      )}
+      ))}
     </AnimatePresence>
   );
 }

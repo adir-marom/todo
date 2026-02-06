@@ -29,26 +29,37 @@ export const taskCardVariants: Variants = {
   },
   exit: {
     opacity: 0,
-    x: 80,
-    scale: 0.9,
-    filter: 'blur(4px)',
+    x: 300,
+    scale: 0.3,
+    rotate: 8,
+    filter: 'blur(8px)',
     transition: {
-      duration: 0.35,
-      ease: [0.36, 0, 0.66, -0.56], // back-in easing for a satisfying swoop
+      duration: 0.5,
+      ease: [0.36, 0, 0.66, -0.56],
+      opacity: { duration: 0.35 },
     },
   },
 };
 
-// Task completion animation
+// Task completion animation - satisfying bounce on check
 export const taskCompleteVariants: Variants = {
   uncompleted: {
     scale: 1,
     opacity: 1,
+    y: 0,
   },
   completed: {
-    scale: 0.98,
-    opacity: 0.7,
-    transition: { duration: 0.3 },
+    scale: [1, 1.03, 0.97, 1],
+    opacity: 0.75,
+    y: 0,
+    transition: {
+      scale: {
+        duration: 0.5,
+        times: [0, 0.2, 0.4, 1],
+        ease: 'easeOut',
+      },
+      opacity: { duration: 0.4, delay: 0.3 },
+    },
   },
 };
 
