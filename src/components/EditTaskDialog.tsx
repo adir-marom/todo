@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { CalendarIcon, Pencil, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { CalendarIcon, Pencil, ArrowUp, ArrowDown, Minus, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Task, Priority, TaskColor, TASK_COLORS } from '@/types/task';
+import { Task, Priority, TaskColor, TASK_COLORS, Recurrence } from '@/types/task';
 
 interface EditTaskDialogProps {
   task: Task;
@@ -44,6 +44,7 @@ export function EditTaskDialog({ task, groups, onSave }: EditTaskDialogProps) {
     task.dueDate ? new Date(task.dueDate) : undefined
   );
   const [color, setColor] = useState<TaskColor>(task.color);
+  const [recurrence, setRecurrence] = useState<Recurrence | null>(task.recurrence);
 
   // Reset form when task changes or dialog opens
   useEffect(() => {
@@ -53,6 +54,7 @@ export function EditTaskDialog({ task, groups, onSave }: EditTaskDialogProps) {
       setGroupName(task.groupName);
       setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
       setColor(task.color);
+      setRecurrence(task.recurrence);
     }
   }, [open, task]);
 
@@ -65,10 +67,11 @@ export function EditTaskDialog({ task, groups, onSave }: EditTaskDialogProps) {
       groupName,
       dueDate: dueDate ? dueDate.toISOString() : null,
       color,
+      recurrence,
     });
 
     setOpen(false);
-  }, [name, priority, groupName, dueDate, color, onSave, task.id]);
+  }, [name, priority, groupName, dueDate, color, recurrence, onSave, task.id]);
 
   const handleClearDueDate = () => {
     setDueDate(undefined);
@@ -221,6 +224,27 @@ export function EditTaskDialog({ task, groups, onSave }: EditTaskDialogProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Repeat</Label>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRecurrence(recurrence === 'weekly' ? null : 'weekly')}
+              className={cn(
+                'w-full justify-start text-left font-normal transition-colors',
+                recurrence === 'weekly'
+                  ? 'border-primary/50 bg-primary/5 text-foreground hover:bg-primary/10 dark:bg-primary/10 dark:hover:bg-primary/15'
+                  : 'text-muted-foreground'
+              )}
+            >
+              <Repeat className={cn(
+                'mr-2 h-4 w-4 transition-colors',
+                recurrence === 'weekly' ? 'text-primary' : 'text-muted-foreground'
+              )} />
+              {recurrence === 'weekly' ? 'Every week — resets Sunday' : 'No repeat'}
+            </Button>
           </div>
         </div>
         <DialogFooter className="flex-col sm:flex-row gap-2">

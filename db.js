@@ -91,6 +91,32 @@ export const initializeDatabase = async () => {
       console.log('Added profile_image column to users table');
     }
     
+    // Migration: Add recurrence_type column to tasks table if it doesn't exist
+    const recurrenceCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'tasks' AND column_name = 'recurrence_type'
+    `);
+    
+    if (recurrenceCheck.rows.length === 0) {
+      await client.query(`
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS recurrence_type VARCHAR(20) DEFAULT NULL
+      `);
+      console.log('Added recurrence_type column to tasks table');
+    }
+    
+    // Migration: Add last_completed_at column to tasks table if it doesn't exist
+    const lastCompletedCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'tasks' AND column_name = 'last_completed_at'
+    `);
+    
+    if (lastCompletedCheck.rows.length === 0) {
+      await client.query(`
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS last_completed_at TIMESTAMPTZ DEFAULT NULL
+      `);
+      console.log('Added last_completed_at column to tasks table');
+    }
+    
     // Check if groups table is empty and seed defaults
     const result = await client.query('SELECT COUNT(*) FROM groups');
     if (parseInt(result.rows[0].count) === 0) {
@@ -220,11 +246,42 @@ export const deleteUser = async (userId) => {
 };
 
 /**
+ * Check and reset recurring tasks that are due for reset.
+ * Weekly tasks reset every Sunday at 00:00 (based on server time).
+ * If the task was completed/archived before the most recent Sunday, it gets reset.
+ * @param {number} userId - User ID
+ */
+export const checkAndResetRecurringTasks = async (userId) => {
+  // Calculate the most recent Sunday at 00:00:00
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const lastSunday = new Date(now);
+  lastSunday.setDate(now.getDate() - dayOfWeek);
+  lastSunday.setHours(0, 0, 0, 0);
+  
+  const result = await pool.query(`
+    UPDATE tasks
+    SET completed = false, archived = false
+    WHERE user_id = $1
+      AND recurrence_type = 'weekly'
+      AND (completed = true OR archived = true)
+      AND (last_completed_at < $2 OR last_completed_at IS NULL)
+  `, [userId, lastSunday.toISOString()]);
+  
+  if (result.rowCount > 0) {
+    console.log(`Reset ${result.rowCount} recurring task(s) for user ${userId}`);
+  }
+};
+
+/**
  * Get all tasks for a specific user
  * @param {number} userId - User ID
  * @returns {Promise<Array>} Array of task objects
  */
 export const getAllTasks = async (userId) => {
+  // Reset any recurring tasks that are due before fetching
+  await checkAndResetRecurringTasks(userId);
+  
   const result = await pool.query(`
     SELECT 
       id,
@@ -238,7 +295,9 @@ export const getAllTasks = async (userId) => {
       archived,
       task_order as "order",
       comments,
-      user_id as "userId"
+      user_id as "userId",
+      recurrence_type as "recurrence",
+      last_completed_at as "lastCompletedAt"
     FROM tasks
     WHERE user_id = $1
     ORDER BY task_order ASC
@@ -288,8 +347,8 @@ export const saveTasks = async (tasks, groups, userId) => {
     // Upsert each task
     for (const task of tasks) {
       await client.query(`
-        INSERT INTO tasks (id, name, created_at, due_date, priority, group_name, color, completed, archived, task_order, comments, user_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO tasks (id, name, created_at, due_date, priority, group_name, color, completed, archived, task_order, comments, user_id, recurrence_type, last_completed_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           created_at = EXCLUDED.created_at,
@@ -301,7 +360,9 @@ export const saveTasks = async (tasks, groups, userId) => {
           archived = EXCLUDED.archived,
           task_order = EXCLUDED.task_order,
           comments = EXCLUDED.comments,
-          user_id = EXCLUDED.user_id
+          user_id = EXCLUDED.user_id,
+          recurrence_type = EXCLUDED.recurrence_type,
+          last_completed_at = EXCLUDED.last_completed_at
       `, [
         task.id,
         task.name,
@@ -314,7 +375,9 @@ export const saveTasks = async (tasks, groups, userId) => {
         task.archived,
         task.order,
         JSON.stringify(task.comments || []),
-        userId
+        userId,
+        task.recurrence || null,
+        task.lastCompletedAt || null
       ]);
     }
     

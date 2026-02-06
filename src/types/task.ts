@@ -23,6 +23,8 @@ export interface TaskComment {
   createdAt: string;
 }
 
+export type Recurrence = 'weekly';
+
 export interface Task {
   id: string;
   name: string;
@@ -35,6 +37,8 @@ export interface Task {
   archived: boolean;
   order: number;
   comments: TaskComment[];
+  recurrence: Recurrence | null;
+  lastCompletedAt: string | null;
 }
 
 export interface TaskData {

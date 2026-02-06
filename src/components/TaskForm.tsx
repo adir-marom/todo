@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { format } from 'date-fns';
-import { CalendarIcon, Plus, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { CalendarIcon, Plus, ArrowUp, ArrowDown, Minus, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Priority, TaskColor, TASK_COLORS } from '@/types/task';
+import { Priority, TaskColor, TASK_COLORS, Recurrence } from '@/types/task';
 
 interface TaskFormProps {
   groups: string[];
@@ -27,7 +27,8 @@ interface TaskFormProps {
     priority: Priority,
     groupName: string,
     dueDate: string | null,
-    color: TaskColor
+    color: TaskColor,
+    recurrence: Recurrence | null
   ) => void;
   onAddGroup: (name: string) => void;
 }
@@ -38,6 +39,7 @@ export function TaskForm({ groups, onSubmit, onAddGroup }: TaskFormProps) {
   const [groupName, setGroupName] = useState(groups[0] || 'Personal');
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [color, setColor] = useState<TaskColor>('blue');
+  const [recurrence, setRecurrence] = useState<Recurrence | null>(null);
   const [newGroup, setNewGroup] = useState('');
   const [showNewGroup, setShowNewGroup] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +51,7 @@ export function TaskForm({ groups, onSubmit, onAddGroup }: TaskFormProps) {
     setGroupName(groups[0] || 'Personal');
     setDueDate(undefined);
     setColor('blue');
+    setRecurrence(null);
     setNewGroup('');
     setShowNewGroup(false);
   };
@@ -62,12 +65,14 @@ export function TaskForm({ groups, onSubmit, onAddGroup }: TaskFormProps) {
       priority,
       groupName,
       dueDate ? dueDate.toISOString() : null,
-      color
+      color,
+      recurrence
     );
 
     // Reset form
     setName('');
     setDueDate(undefined);
+    setRecurrence(null);
     nameInputRef.current?.focus();
   };
 
@@ -251,6 +256,27 @@ export function TaskForm({ groups, onSubmit, onAddGroup }: TaskFormProps) {
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Repeat</Label>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setRecurrence(recurrence === 'weekly' ? null : 'weekly')}
+          className={cn(
+            'w-full justify-start text-left font-normal transition-colors',
+            recurrence === 'weekly'
+              ? 'border-primary/50 bg-primary/5 text-foreground hover:bg-primary/10 dark:bg-primary/10 dark:hover:bg-primary/15'
+              : 'text-muted-foreground'
+          )}
+        >
+          <Repeat className={cn(
+            'mr-2 h-4 w-4 transition-colors',
+            recurrence === 'weekly' ? 'text-primary' : 'text-muted-foreground'
+          )} />
+          {recurrence === 'weekly' ? 'Every week — resets Sunday' : 'No repeat'}
+        </Button>
       </div>
 
       <Button type="submit" className="w-full">

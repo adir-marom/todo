@@ -16,7 +16,8 @@ import {
   X,
   ArrowUp,
   ArrowDown,
-  Minus
+  Minus,
+  Repeat
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -204,6 +205,12 @@ export function TaskCard({
                 )}
                 title={task.name}
               >
+                {task.recurrence === 'weekly' && (
+                  <Repeat 
+                    className="inline h-3 w-3 mr-1 text-primary align-baseline" 
+                    aria-label="Recurring weekly"
+                  />
+                )}
                 {task.name}
               </h3>
               <div className="flex items-center gap-0 sm:gap-0.5 flex-shrink-0 -mr-1 sm:mr-0">
@@ -277,6 +284,16 @@ export function TaskCard({
                   )}>
                     <Clock className="h-2.5 w-2.5" />
                     {daysLeft.text}
+                  </span>
+                )}
+
+                {task.recurrence === 'weekly' && (
+                  <span 
+                    className="flex items-center gap-1 text-primary/70"
+                    title="This task resets every Sunday"
+                  >
+                    <Repeat className="h-2.5 w-2.5" />
+                    {task.completed ? 'Back Sunday' : 'Resets Sun'}
                   </span>
                 )}
               </div>

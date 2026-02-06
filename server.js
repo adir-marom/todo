@@ -109,6 +109,21 @@ const validateTask = (task, index, availableGroups) => {
     }
   }
 
+  // Recurrence validation (optional field)
+  if (task.recurrence !== undefined && task.recurrence !== null) {
+    const VALID_RECURRENCES = ['weekly'];
+    if (!VALID_RECURRENCES.includes(task.recurrence)) {
+      errors.push(`${prefix}: 'recurrence' must be one of: ${VALID_RECURRENCES.join(', ')} or null`);
+    }
+  }
+
+  // lastCompletedAt validation (optional field)
+  if (task.lastCompletedAt !== undefined && task.lastCompletedAt !== null) {
+    if (typeof task.lastCompletedAt !== 'string' || isNaN(Date.parse(task.lastCompletedAt))) {
+      errors.push(`${prefix}: 'lastCompletedAt' must be a valid ISO date string or null`);
+    }
+  }
+
   // Comments validation
   if (task.comments !== undefined) {
     if (!Array.isArray(task.comments)) {

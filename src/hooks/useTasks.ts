@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Task, TaskData, Priority, TaskColor, SortOption, UIState, TaskComment, User } from '@/types/task';
+import { Task, TaskData, Priority, TaskColor, SortOption, UIState, TaskComment, User, Recurrence } from '@/types/task';
 import { v4 as uuidv4 } from 'uuid';
 
 const API_URL = '/api';
@@ -259,10 +259,12 @@ export function useTasks() {
       const response = await fetch(`${API_URL}/tasks?userId=${userId}`);
       if (!response.ok) throw new Error('Failed to fetch tasks');
       const data: TaskData = await response.json();
-      // Ensure all tasks have comments array (migration for existing data)
+      // Ensure all tasks have comments array and recurrence fields (migration for existing data)
       const tasksWithComments = (data.tasks || []).map(task => ({
         ...task,
         comments: task.comments || [],
+        recurrence: task.recurrence || null,
+        lastCompletedAt: task.lastCompletedAt || null,
       }));
       setTasks(tasksWithComments);
       setGroups(data.groups || ['Work', 'Personal', 'Shopping', 'Health']);
@@ -538,7 +540,8 @@ export function useTasks() {
     priority: Priority,
     groupName: string,
     dueDate: string | null,
-    color: TaskColor
+    color: TaskColor,
+    recurrence: Recurrence | null = null
   ) => {
     // Use ref to get latest state
     const currentTasks = tasksRef.current;
@@ -556,6 +559,8 @@ export function useTasks() {
       archived: false,
       order: currentTasks.length,
       comments: [],
+      recurrence,
+      lastCompletedAt: null,
     };
 
     const newTasks = [...currentTasks, newTask];
@@ -607,9 +612,15 @@ export function useTasks() {
       if (!task) return prev;
       taskFound = true;
       
+      const isBecomingComplete = !task.completed;
       const newTasks = prev.map(t => 
         t.id === id 
-          ? { ...t, completed: !t.completed } 
+          ? { 
+              ...t, 
+              completed: !t.completed,
+              // Track when the task was last completed (for recurring task reset logic)
+              lastCompletedAt: isBecomingComplete ? new Date().toISOString() : t.lastCompletedAt,
+            } 
           : t
       );
       tasksRef.current = newTasks;

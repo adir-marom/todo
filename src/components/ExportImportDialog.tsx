@@ -125,6 +125,8 @@ export function ExportImportDialog({
             archived: Boolean(task.archived),
             order: typeof task.order === 'number' ? task.order : index,
             comments: Array.isArray(task.comments) ? task.comments : [],
+            recurrence: task.recurrence === 'weekly' ? 'weekly' : null,
+            lastCompletedAt: task.lastCompletedAt || null,
           } as Task;
         });
         
