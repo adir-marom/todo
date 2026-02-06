@@ -15,6 +15,8 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   archived: false,
   order: 0,
   comments: [],
+  recurrence: null,
+  lastCompletedAt: null,
   ...overrides,
 });
 
