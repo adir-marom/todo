@@ -71,7 +71,12 @@ function App() {
   const [activeTab, setActiveTab] = useState<string>('active');
   const [isUserSelected, setIsUserSelected] = useState(false);
   
-  const { isOpen: isInsightOpen, setIsOpen: setIsInsightOpen, insight } = useDailyInsight(tasks, loading, currentUser?.name);
+  const { isOpen: isInsightOpen, setIsOpen: setIsInsightOpen, insight } = useDailyInsight({
+    tasks,
+    isLoading: loading,
+    userId: currentUser?.id,
+    userName: currentUser?.name,
+  });
 
   useEffect(() => {
     if (currentUser?.id) {

@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InsightData } from "@/hooks/useDailyInsight";
-import { CheckCircle2, AlertCircle, Calendar } from "lucide-react";
+import { ListTodo, AlertTriangle, Clock, Calendar } from "lucide-react";
 
 interface DailyInsightDialogProps {
   isOpen: boolean;
@@ -17,32 +17,43 @@ export function DailyInsightDialog({ isOpen, onOpenChange, insight }: DailyInsig
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
-            <span className="text-primary">👋</span> Daily Insight
+            Daily Insight
           </DialogTitle>
           <DialogDescription className="text-base pt-2">
             {insight.message}
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="grid grid-cols-2 gap-4 py-4">
-          <div className="flex flex-col items-center justify-center p-4 bg-secondary/20 rounded-lg text-center space-y-2">
-            <CheckCircle2 className="h-8 w-8 text-primary" />
+
+        <div className="grid grid-cols-3 gap-3 py-4">
+          {/* Pending tasks */}
+          <div className="flex flex-col items-center justify-center p-3 bg-primary/10 rounded-lg text-center space-y-1.5">
+            <ListTodo className="h-6 w-6 text-primary" />
             <div className="text-2xl font-bold">{insight.pendingTasksCount}</div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">Pending Tasks</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Pending</div>
           </div>
-          
-          <div className="flex flex-col items-center justify-center p-4 bg-destructive/10 rounded-lg text-center space-y-2">
-            <AlertCircle className="h-8 w-8 text-destructive" />
+
+          {/* High priority */}
+          <div className="flex flex-col items-center justify-center p-3 bg-destructive/10 rounded-lg text-center space-y-1.5">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
             <div className="text-2xl font-bold text-destructive">{insight.highPriorityCount}</div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">High Priority</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">High Priority</div>
+          </div>
+
+          {/* Overdue */}
+          <div className="flex flex-col items-center justify-center p-3 bg-orange-500/10 rounded-lg text-center space-y-1.5">
+            <Clock className="h-6 w-6 text-orange-500" />
+            <div className="text-2xl font-bold text-orange-500">{insight.overdueTasks}</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Overdue</div>
           </div>
         </div>
 
         {insight.daysSinceLastVisit > 0 && (
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground pb-2">
-                <Calendar className="h-4 w-4" />
-                <span>Last visited {insight.daysSinceLastVisit} day{insight.daysSinceLastVisit !== 1 ? 's' : ''} ago</span>
-            </div>
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground pb-2">
+            <Calendar className="h-4 w-4" />
+            <span>
+              Last visited {insight.daysSinceLastVisit} day{insight.daysSinceLastVisit !== 1 ? 's' : ''} ago
+            </span>
+          </div>
         )}
 
         <DialogFooter>
