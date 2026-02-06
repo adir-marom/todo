@@ -251,7 +251,7 @@ function App() {
           <div className="container mx-auto py-2 sm:py-6 md:py-8 px-3 sm:px-4 lg:px-6 max-w-4xl">
             <div className="flex items-center justify-between mb-3 sm:mb-6 md:mb-8 gap-2">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <img src="/logo.png" alt="Todo List Logo" className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 flex-shrink-0" />
+                <img src="/logo.png" alt="Todo List Logo" className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 flex-shrink-0 object-contain" />
                 <div className="flex flex-col min-w-0">
                   <h1 className="text-lg sm:text-2xl md:text-3xl font-bold truncate">Todo List</h1>
                   {currentUser && (
