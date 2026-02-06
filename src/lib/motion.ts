@@ -29,9 +29,13 @@ export const taskCardVariants: Variants = {
   },
   exit: {
     opacity: 0,
-    x: -20,
-    scale: 0.95,
-    transition: { duration: 0.2 },
+    x: 80,
+    scale: 0.9,
+    filter: 'blur(4px)',
+    transition: {
+      duration: 0.35,
+      ease: [0.36, 0, 0.66, -0.56], // back-in easing for a satisfying swoop
+    },
   },
 };
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Confetti } from '@/components/ui/confetti';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { DeleteTaskButton } from '@/components/DeleteTaskButton';
 import { cn } from '@/lib/utils';
@@ -54,6 +55,19 @@ export function TaskCard({
 }: TaskCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevCompletedRef = useRef(task.completed);
+
+  // Trigger confetti when task transitions from incomplete -> complete
+  useEffect(() => {
+    if (task.completed && !prevCompletedRef.current) {
+      setShowConfetti(true);
+      // Reset trigger so it can fire again if toggled
+      const timer = setTimeout(() => setShowConfetti(false), 900);
+      return () => clearTimeout(timer);
+    }
+    prevCompletedRef.current = task.completed;
+  }, [task.completed]);
 
   const {
     attributes,
@@ -146,12 +160,13 @@ export function TaskCard({
 
           {/* Only show checkbox for active tasks - archived tasks use the restore button */}
           {!task.archived && (
-            <div className="min-h-[32px] min-w-[32px] flex items-center justify-center -m-1">
+            <div className="relative min-h-[32px] min-w-[32px] flex items-center justify-center -m-1">
               <Checkbox
                 checked={task.completed}
                 onCheckedChange={() => onToggleComplete(task.id)}
                 className="h-4 w-4"
               />
+              <Confetti trigger={showConfetti} />
             </div>
           )}
 
