@@ -13,7 +13,8 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
-  X,
+  Trash2,
+  MoreHorizontal,
   ArrowUp,
   ArrowDown,
   Minus,
@@ -25,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Confetti } from '@/components/ui/confetti';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { DeleteTaskButton } from '@/components/DeleteTaskButton';
 import { cn } from '@/lib/utils';
@@ -336,20 +338,34 @@ export function TaskCard({
                               key={comment.id}
                               initial={{ opacity: 0, y: -10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="bg-muted/50 rounded-md p-2 text-xs sm:text-sm group"
+                              className="bg-muted/50 rounded-md p-2 text-xs sm:text-sm"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <p className="text-foreground flex-1">{comment.text}</p>
                                 {onDeleteComment && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-8 w-8 min-h-[44px] min-w-[44px] -m-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                                    onClick={() => onDeleteComment(task.id, comment.id)}
-                                    aria-label="Delete comment"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </Button>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6 min-h-[28px] min-w-[28px] flex-shrink-0 text-muted-foreground hover:text-foreground"
+                                        aria-label="Comment actions"
+                                      >
+                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent align="end" className="w-36 p-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start gap-2 h-9 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => onDeleteComment(task.id, comment.id)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        Delete
+                                      </Button>
+                                    </PopoverContent>
+                                  </Popover>
                                 )}
                               </div>
                               <span className="text-[10px] sm:text-xs text-muted-foreground">

@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,8 +19,20 @@ interface DeleteTaskButtonProps {
 }
 
 export function DeleteTaskButton({ taskName, onDelete }: DeleteTaskButtonProps) {
+  const [open, setOpen] = useState(false);
+
+  const handleDelete = useCallback(() => {
+    // Close the dialog first, then fire the delete callback on next tick.
+    // This prevents the React.Children.only crash caused by the AlertDialog
+    // still being mounted while the parent TaskCard unmounts via AnimatePresence.
+    setOpen(false);
+    requestAnimationFrame(() => {
+      onDelete();
+    });
+  }, [onDelete]);
+
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
         <Button
           size="icon"
@@ -40,7 +53,10 @@ export function DeleteTaskButton({ taskName, onDelete }: DeleteTaskButtonProps) 
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onDelete}
+            onClick={(e) => {
+              e.preventDefault();
+              handleDelete();
+            }}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             Delete

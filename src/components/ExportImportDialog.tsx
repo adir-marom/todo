@@ -20,12 +20,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Task, User } from '@/types/task';
+import { cn } from '@/lib/utils';
 
 interface ExportImportDialogProps {
   tasks: Task[];
   groups: string[];
   currentUser: User | null;
   onImport: (tasks: Task[], groups: string[], mode: 'replace' | 'merge') => Promise<boolean>;
+  /** Override trigger variant ('ghost' for menu-style) */
+  triggerVariant?: 'outline' | 'ghost';
+  /** Always show trigger label text (for menus) */
+  showLabel?: boolean;
 }
 
 export function ExportImportDialog({
@@ -33,6 +38,8 @@ export function ExportImportDialog({
   groups,
   currentUser,
   onImport,
+  triggerVariant = 'outline',
+  showLabel = false,
 }: ExportImportDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<{ tasks: Task[]; groups: string[] } | null>(null);
@@ -181,9 +188,16 @@ export function ExportImportDialog({
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8 sm:h-9 gap-1.5 px-2 sm:px-3">
+          <Button
+            variant={triggerVariant}
+            size="sm"
+            className={cn(
+              "gap-1.5",
+              showLabel ? "w-full justify-start h-10 px-3 text-sm" : "h-8 sm:h-9 px-2 sm:px-3"
+            )}
+          >
             <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Export</span>
+            <span className={showLabel ? "" : "hidden sm:inline"}>Export & Import</span>
           </Button>
         </DialogTrigger>
         <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Settings, Trash2, Pencil, Plus, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -28,6 +29,10 @@ interface GroupManagementDialogProps {
   onAddGroup: (name: string) => void;
   onRenameGroup: (oldName: string, newName: string) => void;
   onDeleteGroup: (name: string, reassignTo?: string) => void;
+  /** Override trigger variant ('ghost' for menu-style) */
+  triggerVariant?: 'outline' | 'ghost';
+  /** Always show trigger label text (for menus) */
+  showLabel?: boolean;
 }
 
 export function GroupManagementDialog({
@@ -36,6 +41,8 @@ export function GroupManagementDialog({
   onAddGroup,
   onRenameGroup,
   onDeleteGroup,
+  triggerVariant = 'outline',
+  showLabel = false,
 }: GroupManagementDialogProps) {
   const [open, setOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
@@ -99,9 +106,16 @@ export function GroupManagementDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 sm:h-9 gap-1.5 px-2 sm:px-3">
+        <Button
+          variant={triggerVariant}
+          size="sm"
+          className={cn(
+            "gap-1.5",
+            showLabel ? "w-full justify-start h-10 px-3 text-sm" : "h-8 sm:h-9 px-2 sm:px-3"
+          )}
+        >
           <Settings className="h-4 w-4" />
-          <span className="hidden sm:inline">Manage Groups</span>
+          <span className={showLabel ? "" : "hidden sm:inline"}>Manage Groups</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-[400px] max-h-[90vh] overflow-y-auto sm:w-full sm:rounded-lg">
