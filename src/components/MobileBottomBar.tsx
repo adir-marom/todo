@@ -4,7 +4,7 @@ import { Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { slideUpVariants, buttonTapScale } from '@/lib/motion';
+import { buttonTapScale } from '@/lib/motion';
 
 interface MobileBottomBarProps {
   onAdd: (name: string) => void;
@@ -53,12 +53,7 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
   }, [isExpanded]);
 
   return (
-    <motion.div
-      variants={slideUpVariants}
-      initial="initial"
-      animate="animate"
-      className="fixed bottom-0 left-0 right-0 md:hidden z-50"
-    >
+    <div className="md:hidden">
       {/* Backdrop when expanded */}
       <AnimatePresence>
         {isExpanded && (
@@ -66,36 +61,30 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
             onClick={handleCollapse}
           />
         )}
       </AnimatePresence>
-      
-      {/* Bottom bar */}
-      <div className={cn(
-        "relative bg-background border-t shadow-lg",
-        "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
-      )}>
-        <AnimatePresence mode="wait">
-          {isExpanded ? (
-            // Expanded input form
-            <motion.form
-              key="form"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.2 }}
-              onSubmit={handleSubmit}
-              className="p-2 pt-2.5"
-            >
-              <div className="flex items-center gap-1.5">
+
+      {/* Expanded input form at bottom */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-lg pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+          >
+            <form onSubmit={handleSubmit} className="p-3">
+              <div className="flex items-center gap-2">
                 <motion.div whileTap={buttonTapScale}>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 flex-shrink-0"
+                    className="h-10 w-10 flex-shrink-0"
                     onClick={handleCollapse}
                     aria-label="Cancel"
                   >
@@ -108,49 +97,53 @@ export function MobileBottomBar({ onAdd }: MobileBottomBarProps) {
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
                   placeholder="What needs to be done?"
-                  className="h-10 text-base flex-1"
+                  className="h-11 text-base flex-1"
                   aria-label="Task name"
                 />
                 <motion.div whileTap={buttonTapScale}>
                   <Button
                     type="submit"
                     size="default"
-                    className="h-10 px-4 flex-shrink-0"
+                    className="h-11 px-5 flex-shrink-0"
                     disabled={!value.trim()}
                   >
                     Add
                   </Button>
                 </motion.div>
               </div>
-            </motion.form>
-          ) : (
-            // Collapsed FAB-style button
-            <motion.div
-              key="fab"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
-              className="flex justify-center p-2"
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Action Button — always visible, bottom-right */}
+      <AnimatePresence>
+        {!isExpanded && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-6 right-4 z-50"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={handleExpand}
+              className={cn(
+                "h-14 w-14 rounded-full shadow-lg flex items-center justify-center",
+                "bg-primary text-primary-foreground",
+                "hover:bg-primary/90 active:bg-primary/80",
+                "transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              )}
+              aria-label="Add new task"
             >
-              <motion.div
-                whileTap={buttonTapScale}
-                whileHover={{ scale: 1.05 }}
-              >
-                <Button
-                  onClick={handleExpand}
-                  size="lg"
-                  className="h-11 px-5 rounded-full shadow-md gap-2"
-                  aria-label="Add new task"
-                >
-                  <Plus className="h-5 w-5" />
-                  <span>Add Task</span>
-                </Button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
+              <Plus className="h-6 w-6" />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
