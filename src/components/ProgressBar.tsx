@@ -25,9 +25,14 @@ export function ProgressBar({ completed, total, className }: ProgressBarProps) {
             <span>{completed} done</span>
           </span>
         </div>
-        <span className="font-medium tabular-nums" aria-label={`${percentage}% complete`}>
-          {percentage}%
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">
+            Completed this list
+          </span>
+          <span className="font-medium tabular-nums" aria-label={`${percentage}% complete`}>
+            {percentage}%
+          </span>
+        </div>
       </div>
 
       {/* Progress Bar */}

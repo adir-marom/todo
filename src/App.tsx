@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, Archive, ListTodo, ChevronDown, X, Minimize2 } from 'lucide-react';
+import { CheckSquare, Archive, ListTodo, ChevronDown, X, Minimize2, MoreVertical, Filter, SlidersHorizontal } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TaskForm } from '@/components/TaskForm';
 import { TaskList } from '@/components/TaskList';
 import { FilterBar } from '@/components/FilterBar';
@@ -16,7 +17,6 @@ import { GroupManagementDialog } from '@/components/GroupManagementDialog';
 import { UserSwitcher, getUserColor } from '@/components/UserSwitcher';
 import { UserSelection } from '@/components/UserSelection';
 import { SyncStatus, SyncStatusCompact } from '@/components/SyncStatus';
-import { ExportImportDialog } from '@/components/ExportImportDialog';
 import { UndoToast } from '@/components/UndoToast';
 import { useDailyInsight } from '@/hooks/useDailyInsight';
 import { DailyInsightDialog } from '@/components/DailyInsightDialog';
@@ -24,6 +24,7 @@ import { useTasks, sortTasks, filterTasks, loadUIState, saveUIState } from '@/ho
 import { Priority, SortOption, TaskColor } from '@/types/task';
 import { cn } from '@/lib/utils';
 import { viewTransitionVariants } from '@/lib/motion';
+import { Badge } from '@/components/ui/badge';
 
 const MINIMAL_VIEW_KEY = 'todo-minimal-view';
 
@@ -58,7 +59,6 @@ function App() {
     deleteComment,
     switchUser,
     updateUser,
-    importTasks,
     clearError,
   } = useTasks();
 
@@ -98,6 +98,8 @@ function App() {
   };
 
   const [showFullForm, setShowFullForm] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [isMinimalView, setIsMinimalView] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('view') === 'minimal') return true;
@@ -244,7 +246,7 @@ function App() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="min-h-screen bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"
+          className="min-h-screen bg-background pb-4 md:pb-0"
         >
           <div className="container mx-auto py-2 sm:py-6 md:py-8 px-3 sm:px-4 lg:px-6 max-w-4xl">
             <div className="flex items-center justify-between mb-3 sm:mb-6 md:mb-8 gap-2">
@@ -262,16 +264,31 @@ function App() {
             <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-shrink-0">
                 <SyncStatusCompact state={syncState} />
                 <UserSwitcher users={users} currentUser={currentUser} onSwitchUser={switchUser} onUpdateUser={updateUser} />
-                <div className="hidden sm:block">
-                  <ExportImportDialog tasks={tasks} groups={groups} currentUser={currentUser} onImport={importTasks} />
-                </div>
-                <Button variant="ghost" size="icon" onClick={toggleMinimalView} aria-label="Switch to minimal view" title="Minimal view (M)" className="hidden sm:flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10">
-                  <Minimize2 className="h-4 w-4" />
-                </Button>
-                <div className="hidden sm:block">
+                {/* Desktop: show all actions inline */}
+                <div className="hidden md:flex items-center gap-1">
+                  <Button variant="ghost" size="icon" onClick={toggleMinimalView} aria-label="Switch to minimal view" title="Minimal view (M)" className="h-9 w-9 md:h-10 md:w-10">
+                    <Minimize2 className="h-4 w-4" />
+                  </Button>
                   <GroupManagementDialog groups={groups} taskCountByGroup={taskCountByGroup} onAddGroup={addGroup} onRenameGroup={renameGroup} onDeleteGroup={removeGroup} />
                 </div>
                 <ThemeToggle />
+                {/* Mobile/tablet: overflow "More" menu */}
+                <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 sm:h-9 sm:w-9" aria-label="More actions">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-52 p-1" onInteractOutside={() => setMoreMenuOpen(false)}>
+                    <div className="flex flex-col" onClick={() => setMoreMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-10 px-3 text-sm" onClick={() => { toggleMinimalView(); setMoreMenuOpen(false); }}>
+                        <Minimize2 className="h-4 w-4" />
+                        Minimal View
+                      </Button>
+                      <GroupManagementDialog groups={groups} taskCountByGroup={taskCountByGroup} onAddGroup={addGroup} onRenameGroup={renameGroup} onDeleteGroup={removeGroup} triggerVariant="ghost" showLabel />
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
@@ -331,10 +348,41 @@ function App() {
                 <TabsContent value="active" className="space-y-2 sm:space-y-4 mt-0" asChild>
                   <motion.div key="active" variants={viewTransitionVariants} initial="initial" animate="animate" exit="exit">
                     <Card>
-                      <CardHeader className="hidden sm:flex py-4 px-6"><CardTitle className="text-lg">Filter & Sort</CardTitle></CardHeader>
-                      <CardContent className="px-3 py-2 sm:px-6 sm:pb-6 sm:pt-0">
-                        <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} groupFilter={groupFilter} onGroupFilterChange={setGroupFilter} priorityFilter={priorityFilter} onPriorityFilterChange={setPriorityFilter} colorFilter={colorFilter} onColorFilterChange={setColorFilter} sortBy={sortBy} onSortChange={setSortBy} sortAscending={sortAscending} onSortDirectionChange={setSortAscending} groups={groups} />
-                      </CardContent>
+                      <button
+                        className="w-full flex items-center justify-between px-3 py-2 sm:px-6 sm:py-4 text-left"
+                        onClick={() => setFiltersExpanded(!filtersExpanded)}
+                        aria-expanded={filtersExpanded}
+                        aria-controls="active-filter-bar"
+                      >
+                        <div className="flex items-center gap-2">
+                          <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm sm:text-lg font-semibold">Filter & Sort</span>
+                          {!filtersExpanded && hasActiveFilters && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 leading-none">
+                              {[searchQuery, groupFilter, priorityFilter, colorFilter].filter(Boolean).length} active
+                            </Badge>
+                          )}
+                        </div>
+                        <motion.span animate={{ rotate: filtersExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </motion.span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {filtersExpanded && (
+                          <motion.div
+                            id="active-filter-bar"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="overflow-hidden"
+                          >
+                            <CardContent className="px-3 py-2 sm:px-6 sm:pb-6 pt-0">
+                              <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} groupFilter={groupFilter} onGroupFilterChange={setGroupFilter} priorityFilter={priorityFilter} onPriorityFilterChange={setPriorityFilter} colorFilter={colorFilter} onColorFilterChange={setColorFilter} sortBy={sortBy} onSortChange={setSortBy} sortAscending={sortAscending} onSortDirectionChange={setSortAscending} groups={groups} />
+                            </CardContent>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </Card>
                     <TaskList tasks={filteredActiveTasks} groups={groups} totalCount={activeTasks.length} hasActiveFilters={hasActiveFilters} isArchiveView={false} userName={currentUser?.name} onToggleComplete={toggleComplete} onDelete={deleteTask} onUpdate={updateTask} onReorder={reorderTasks} onAddComment={addComment} onDeleteComment={deleteComment} onClearFilters={clearFilters} onShowFullForm={() => setShowFullForm(true)} isDraggable={sortBy === 'order'} />
                   </motion.div>
@@ -343,11 +391,42 @@ function App() {
                 <TabsContent value="archived" className="space-y-2 sm:space-y-4 mt-0" asChild>
                   <motion.div key="archived" variants={viewTransitionVariants} initial="initial" animate="animate" exit="exit">
                     <Card>
-                      <CardHeader className="hidden sm:flex py-4 px-6"><CardTitle className="text-lg">Archived Tasks</CardTitle></CardHeader>
-                      <CardContent className="px-3 py-2 sm:px-6 sm:pb-6 sm:pt-0">
-                        <p className="hidden sm:block text-sm text-muted-foreground mb-4">Completed tasks are moved here. You can restore them to active tasks.</p>
-                        <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} groupFilter={groupFilter} onGroupFilterChange={setGroupFilter} priorityFilter={priorityFilter} onPriorityFilterChange={setPriorityFilter} colorFilter={colorFilter} onColorFilterChange={setColorFilter} sortBy={sortBy} onSortChange={setSortBy} sortAscending={sortAscending} onSortDirectionChange={setSortAscending} groups={groups} />
-                      </CardContent>
+                      <button
+                        className="w-full flex items-center justify-between px-3 py-2 sm:px-6 sm:py-4 text-left"
+                        onClick={() => setFiltersExpanded(!filtersExpanded)}
+                        aria-expanded={filtersExpanded}
+                        aria-controls="archived-filter-bar"
+                      >
+                        <div className="flex items-center gap-2">
+                          <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm sm:text-lg font-semibold">Filter & Sort</span>
+                          {!filtersExpanded && hasActiveFilters && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 leading-none">
+                              {[searchQuery, groupFilter, priorityFilter, colorFilter].filter(Boolean).length} active
+                            </Badge>
+                          )}
+                        </div>
+                        <motion.span animate={{ rotate: filtersExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </motion.span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {filtersExpanded && (
+                          <motion.div
+                            id="archived-filter-bar"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="overflow-hidden"
+                          >
+                            <CardContent className="px-3 py-2 sm:px-6 sm:pb-6 pt-0">
+                              <p className="hidden sm:block text-sm text-muted-foreground mb-4">Completed tasks are moved here. You can restore them to active tasks.</p>
+                              <FilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} groupFilter={groupFilter} onGroupFilterChange={setGroupFilter} priorityFilter={priorityFilter} onPriorityFilterChange={setPriorityFilter} colorFilter={colorFilter} onColorFilterChange={setColorFilter} sortBy={sortBy} onSortChange={setSortBy} sortAscending={sortAscending} onSortDirectionChange={setSortAscending} groups={groups} />
+                            </CardContent>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </Card>
                     <TaskList tasks={filteredArchivedTasks} groups={groups} totalCount={archivedTasks.length} hasActiveFilters={hasActiveFilters} isArchiveView={true} onToggleComplete={toggleComplete} onDelete={deleteTask} onUpdate={updateTask} onReorder={reorderTasks} onRestore={restoreTask} onAddComment={addComment} onDeleteComment={deleteComment} onClearFilters={clearFilters} isDraggable={false} />
                   </motion.div>
